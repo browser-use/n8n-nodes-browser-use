@@ -1,6 +1,6 @@
 {
-  "name": "n8n-nodes-browser-use",
-  "version": "1.0.0",
+  "name": "n8n-nodes-browser-use-cloud",
+  "version": "1.0.2",
   "description": "n8n node for Browser Use Cloud API - Automate web tasks with AI agents",
   "keywords": [
     "n8n-community-node-package",
@@ -32,10 +32,11 @@
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials",
     "lintfix": "eslint nodes credentials --fix",
-    "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json"
+    "prepublishOnly": "pnpm build && pnpm lint"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.js"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,

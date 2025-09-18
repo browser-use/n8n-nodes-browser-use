@@ -27,35 +27,6 @@ export class BrowserUse implements INodeType {
 		],
 		properties: [
 			{
-				displayName: '🚀 Get Started with Browser Use',
-				name: 'getStartedNotice',
-				type: 'notice',
-				default: '',
-				typeOptions: {
-					theme: 'info',
-				},
-			},
-			{
-				displayName:
-					'Need an API key? Sign up at <a href="https://cloud.browser-use.com" target="_blank">cloud.browser-use.com</a>',
-				name: 'signupNotice',
-				type: 'notice',
-				default: '',
-				typeOptions: {
-					theme: 'success',
-				},
-			},
-			{
-				displayName:
-					'Documentation: <a href="https://docs.cloud.browser-use.com" target="_blank">docs.cloud.browser-use.com</a>',
-				name: 'docsNotice',
-				type: 'notice',
-				default: '',
-				typeOptions: {
-					theme: 'info',
-				},
-			},
-			{
 				displayName: 'Task Description',
 				name: 'task',
 				type: 'string',
@@ -119,26 +90,51 @@ export class BrowserUse implements INodeType {
 					{
 						name: 'Article/Blog Content',
 						value: 'article',
+						description:
+							'Extracts: title, author, publishDate, content, summary, tags, readTime, category',
 					},
 					{
 						name: 'Company Information',
 						value: 'company',
+						description:
+							'Extracts: companyName, industry, description, foundedYear, headquarters, employees, revenue, website, contactInfo, keyPeople',
 					},
 					{
 						name: 'Contact Information',
 						value: 'contact',
+						description:
+							'Extracts: companyName, email, phone, address, website, socialMedia (twitter, linkedin, facebook)',
 					},
 					{
 						name: 'Custom Format',
 						value: 'custom',
+						description: 'Define your own JSON schema structure',
 					},
 					{
 						name: 'Product Information',
 						value: 'product',
+						description:
+							'Extracts: productName, price, description, inStock, images, specifications, rating, reviews',
 					},
 				],
 				default: 'custom',
 				description: 'Choose a pre-built template or define custom format',
+			},
+			{
+				displayName:
+					'💡 Using a pre-built template will automatically extract the fields shown above. To see the full JSON schema or create your own structure, select "Custom Format".',
+				name: 'templateSchemaPreview',
+				type: 'notice',
+				displayOptions: {
+					show: {
+						enableStructuredOutput: [true],
+						schemaTemplate: ['product', 'contact', 'article', 'company'],
+					},
+				},
+				default: '',
+				typeOptions: {
+					theme: 'info',
+				},
 			},
 			{
 				displayName: 'Custom Data Format (JSON Schema)',
@@ -211,6 +207,26 @@ export class BrowserUse implements INodeType {
 						description: 'AI model to use for the task',
 					},
 				],
+			},
+			{
+				displayName:
+					'Need an API key? Sign up at <a href="https://cloud.browser-use.com" target="_blank">cloud.browser-use.com</a>',
+				name: 'signupNotice',
+				type: 'notice',
+				default: '',
+				typeOptions: {
+					theme: 'success',
+				},
+			},
+			{
+				displayName:
+					'Documentation: <a href="https://docs.cloud.browser-use.com" target="_blank">docs.cloud.browser-use.com</a>',
+				name: 'docsNotice',
+				type: 'notice',
+				default: '',
+				typeOptions: {
+					theme: 'info',
+				},
 			},
 		],
 	};
@@ -508,9 +524,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 			);
 		}
 
-		const pollInterval = 3000; // 3 seconds for polls
-
-		await new Promise((resolve) => setTimeout(resolve, pollInterval));
+		// Continue polling without delay - API handles rate limiting
 	}
 
 	// Return partial results even if not completed

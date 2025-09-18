@@ -46,8 +46,12 @@ The main node for automating any web task with natural language using AI agents.
 - **Extract Structured Data**: Enable to extract data in a specific JSON schema format
 
 **Structured Data Options** (when enabled):
-- **Data Template**: Choose from pre-built schemas (Product, Contact, Article, Company) or Custom Format
-- **Custom Data Format**: Define your own JSON schema for data extraction
+- **Data Template**: Choose from pre-built schemas with field descriptions:
+  - **Product Information**: productName, price, description, inStock, images, specifications, rating, reviews
+  - **Contact Information**: companyName, email, phone, address, website, socialMedia
+  - **Article/Blog Content**: title, author, publishDate, content, summary, tags, readTime, category  
+  - **Company Information**: companyName, industry, description, foundedYear, headquarters, employees, revenue, website, contactInfo, keyPeople
+  - **Custom Format**: Define your own JSON schema for data extraction
 
 **Advanced Options:**
 - **Max Steps**: Maximum number of steps the agent can take (1-200)
