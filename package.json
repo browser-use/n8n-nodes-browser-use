@@ -30,8 +30,8 @@
     "build": "NODE_NO_WARNINGS=1 tsc && gulp build:icons",
     "dev": "NODE_NO_WARNINGS=1 tsc --watch",
     "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
+    "lint": "eslint nodes credentials",
+    "lintfix": "eslint nodes credentials --fix",
     "prepublishOnly": "pnpm build && pnpm lint -c .eslintrc.prepublish.js nodes credentials package.json"
   },
   "files": [
@@ -47,13 +47,14 @@
     ]
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.15.0",
     "eslint": "^8.56.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
     "gulp": "^4.0.2",
     "n8n-workflow": "*",
     "prettier": "^3.3.2",
-    "typescript": "^5.5.3"
+    "typescript": "~5.5.0"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

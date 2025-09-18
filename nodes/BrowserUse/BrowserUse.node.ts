@@ -4,7 +4,6 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	NodeOperationError,
-	NodeConnectionType,
 } from 'n8n-workflow';
 
 export class BrowserUse implements INodeType {
@@ -18,8 +17,8 @@ export class BrowserUse implements INodeType {
 		defaults: {
 			name: 'Browser Use',
 		},
-		inputs: [{ type: 'main' as NodeConnectionType }],
-		outputs: [{ type: 'main' as NodeConnectionType }],
+		inputs: ['main'] as any,
+		outputs: ['main'] as any,
 		credentials: [
 			{
 				name: 'browserUseApi',
@@ -37,7 +36,8 @@ export class BrowserUse implements INodeType {
 				},
 			},
 			{
-				displayName: 'Need an API key? Sign up at <a href="https://cloud.browser-use.com" target="_blank">cloud.browser-use.com</a>',
+				displayName:
+					'Need an API key? Sign up at <a href="https://cloud.browser-use.com" target="_blank">cloud.browser-use.com</a>',
 				name: 'signupNotice',
 				type: 'notice',
 				default: '',
@@ -46,7 +46,8 @@ export class BrowserUse implements INodeType {
 				},
 			},
 			{
-				displayName: 'Documentation: <a href="https://docs.cloud.browser-use.com" target="_blank">docs.cloud.browser-use.com</a>',
+				displayName:
+					'Documentation: <a href="https://docs.cloud.browser-use.com" target="_blank">docs.cloud.browser-use.com</a>',
 				name: 'docsNotice',
 				type: 'notice',
 				default: '',
@@ -74,7 +75,7 @@ export class BrowserUse implements INodeType {
 				description: 'Starting URL for the task (optional)',
 			},
 			{
-				displayName: 'Timeout (seconds)',
+				displayName: 'Timeout (Seconds)',
 				name: 'timeout',
 				type: 'number',
 				default: 300,
@@ -89,7 +90,7 @@ export class BrowserUse implements INodeType {
 				name: 'enableStructuredOutput',
 				type: 'boolean',
 				default: false,
-				description: 'Extract data in a specific JSON format for easier processing',
+				description: 'Whether to extract data in a specific JSON format for easier processing',
 			},
 			{
 				displayName: 'Configure the data structure you want to extract below ↓',
@@ -116,24 +117,24 @@ export class BrowserUse implements INodeType {
 				},
 				options: [
 					{
-						name: 'Custom Format',
-						value: 'custom',
-					},
-					{
-						name: 'Product Information',
-						value: 'product',
-					},
-					{
-						name: 'Contact Information',
-						value: 'contact',
-					},
-					{
 						name: 'Article/Blog Content',
 						value: 'article',
 					},
 					{
 						name: 'Company Information',
 						value: 'company',
+					},
+					{
+						name: 'Contact Information',
+						value: 'contact',
+					},
+					{
+						name: 'Custom Format',
+						value: 'custom',
+					},
+					{
+						name: 'Product Information',
+						value: 'product',
 					},
 				],
 				default: 'custom',
@@ -182,6 +183,10 @@ export class BrowserUse implements INodeType {
 								value: 'gemini-2.5-flash',
 							},
 							{
+								name: 'Gemini 2.5 Pro',
+								value: 'gemini-2.5-pro',
+							},
+							{
 								name: 'GPT-4.1',
 								value: 'gpt-4.1',
 							},
@@ -190,40 +195,16 @@ export class BrowserUse implements INodeType {
 								value: 'gpt-4.1-mini',
 							},
 							{
-								name: 'GPT-4o',
-								value: 'gpt-4o',
-							},
-							{
-								name: 'GPT-4o Mini',
-								value: 'gpt-4o-mini',
-							},
-							{
-								name: 'O4 Mini',
-								value: 'o4-mini',
+								name: 'Llama 4 Maverick',
+								value: 'llama-4-maverick-17b-128e-instruct',
 							},
 							{
 								name: 'O3',
 								value: 'o3',
 							},
 							{
-								name: 'Gemini 2.5 Flash',
-								value: 'gemini-2.5-flash',
-							},
-							{
-								name: 'Gemini 2.5 Pro',
-								value: 'gemini-2.5-pro',
-							},
-							{
-								name: 'Claude Sonnet 4',
-								value: 'claude-sonnet-4-20250514',
-							},
-							{
-								name: 'Claude 3.7 Sonnet',
-								value: 'claude-3-7-sonnet-20250219',
-							},
-							{
-								name: 'Llama 4 Maverick',
-								value: 'llama-4-maverick-17b-128e-instruct',
+								name: 'O4 Mini',
+								value: 'o4-mini',
 							},
 						],
 						default: 'gemini-2.5-flash',
@@ -280,7 +261,6 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 	const schemaTemplate = this.getNodeParameter('schemaTemplate', itemIndex, 'custom') as string;
 	const outputSchema = this.getNodeParameter('outputSchema', itemIndex, '') as string;
 	const advancedOptions = this.getNodeParameter('advancedOptions', itemIndex, {}) as any;
-
 
 	// Validate required parameters
 	if (!task.trim()) {
@@ -340,10 +320,10 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 		// Handle schema templates
 		if (schemaTemplate && schemaTemplate !== 'custom') {
 			schema = getSchemaTemplate(schemaTemplate);
-			} else if (outputSchema) {
+		} else if (outputSchema) {
 			try {
 				schema = typeof outputSchema === 'string' ? JSON.parse(outputSchema) : outputSchema;
-					
+
 				// Validate the parsed schema
 				if (!schema || typeof schema !== 'object') {
 					throw new NodeOperationError(
@@ -352,7 +332,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 						{ level: 'warning' },
 					);
 				}
-				
+
 				// Check for common schema mistakes
 				if (Array.isArray(schema)) {
 					if (schema.length === 0) {
@@ -394,7 +374,6 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 						);
 					}
 				}
-				
 			} catch (error) {
 				if (error instanceof NodeOperationError) {
 					throw error; // Re-throw our custom errors
@@ -406,7 +385,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 				);
 			}
 		} else {
-				throw new NodeOperationError(
+			throw new NodeOperationError(
 				this.getNode(),
 				'Structured output is enabled but no schema is provided. Please select a template or provide a custom JSON schema.',
 				{ level: 'warning' },
@@ -417,7 +396,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 		if (schema && typeof schema === 'object') {
 			// Convert to proper JSON Schema format
 			let validSchema = schema;
-			
+
 			// Helper function to convert properties to proper JSON Schema format
 			const convertProperties = (properties: any): any => {
 				const converted: any = {};
@@ -425,11 +404,16 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 					if (typeof value === 'string') {
 						// Convert simple string types like "string" to proper JSON Schema objects
 						converted[key] = { type: value };
-					} else if (value && typeof value === 'object' && !(value as any).type && !Array.isArray(value)) {
+					} else if (
+						value &&
+						typeof value === 'object' &&
+						!(value as any).type &&
+						!Array.isArray(value)
+					) {
 						// If it's an object without a type, recursively convert it
 						converted[key] = {
 							type: 'object',
-							properties: convertProperties(value)
+							properties: convertProperties(value),
 						};
 					} else {
 						// Keep as-is if it's already properly formatted
@@ -438,46 +422,45 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 				}
 				return converted;
 			};
-			
+
 			if (!schema.type) {
 				// If no 'type' property, wrap it in a proper JSON schema structure
 				if (Array.isArray(schema)) {
 					// Convert simple object to proper JSON Schema properties
 					const firstItem = schema[0] || {};
 					const properties = convertProperties(firstItem);
-					
+
 					validSchema = {
-						type: "array",
+						type: 'array',
 						items: {
-							type: "object",
+							type: 'object',
 							properties,
-							required: Object.keys(firstItem)
-						}
+							required: Object.keys(firstItem),
+						},
 					};
 				} else {
 					// Convert simple object to proper JSON Schema properties
 					const properties = convertProperties(schema);
-					
+
 					validSchema = {
-						type: "object",
+						type: 'object',
 						properties,
-						required: Object.keys(schema)
+						required: Object.keys(schema),
 					};
 				}
-				} else if (schema.type === 'object' && schema.properties) {
+			} else if (schema.type === 'object' && schema.properties) {
 				// Even if it has a type, ensure all properties are properly formatted
 				validSchema = {
 					...schema,
-					properties: convertProperties(schema.properties)
+					properties: convertProperties(schema.properties),
 				};
-				}
-			
+			}
+
 			// API expects stringified JSON schema
 			body.structuredOutput = JSON.stringify(validSchema);
-				// Enhance task description to emphasize structured output requirement
+			// Enhance task description to emphasize structured output requirement
 			body.task = `${body.task}\n\nIMPORTANT: Extract and return data in the exact JSON structure specified. Follow the schema strictly.`;
-		} else {
-			}
+		}
 	}
 
 	const response = await makeApiCall.call(this, 'POST', '/tasks', body);
@@ -494,7 +477,6 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 	const taskId = response.id;
 	const startTime = Date.now();
 	let lastStatus = '';
-	let pollCount = 0;
 
 	while (Date.now() - startTime < timeout * 1000) {
 		const taskDetails = await makeApiCall.call(this, 'GET', `/tasks/${taskId}`);
@@ -514,7 +496,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 				agentMessage: taskDetails.isSuccess
 					? 'AI agent successfully completed the task'
 					: 'AI agent was unable to fully complete the task',
-				cloudUrl: taskDetails.sessionId 
+				cloudUrl: taskDetails.sessionId
 					? `https://cloud.browser-use.com/agent/${taskDetails.sessionId}`
 					: null,
 			};
@@ -526,11 +508,9 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 			);
 		}
 
-		let pollInterval;
-		pollInterval = 3000; // 3 seconds for polls
+		const pollInterval = 3000; // 3 seconds for polls
 
 		await new Promise((resolve) => setTimeout(resolve, pollInterval));
-		pollCount++;
 	}
 
 	// Return partial results even if not completed
@@ -538,7 +518,7 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 	return {
 		...formatOutput(finalTask),
 		warning: `Task did not complete within ${timeout} seconds but may still be running`,
-		cloudUrl: finalTask.sessionId 
+		cloudUrl: finalTask.sessionId
 			? `https://cloud.browser-use.com/agent/${finalTask.sessionId}`
 			: null,
 	};
@@ -580,27 +560,30 @@ async function makeApiCall(
 		if ((error as any).response) {
 			const statusCode = (error as any).response.status;
 			const responseData = (error as any).response.data;
-			
+
 			// Extract detailed error information
 			let errorMessage = '';
 			if (responseData) {
 				// Try different common error message fields
-				const rawMessage = 
+				const rawMessage =
 					responseData.message ||
 					responseData.error ||
 					responseData.detail ||
 					responseData.details ||
-					(responseData.errors && Array.isArray(responseData.errors) ? responseData.errors.join(', ') : '') ||
+					(responseData.errors && Array.isArray(responseData.errors)
+						? responseData.errors.join(', ')
+						: '') ||
 					JSON.stringify(responseData);
-				
+
 				// Ensure errorMessage is always a string
 				errorMessage = typeof rawMessage === 'string' ? rawMessage : String(rawMessage);
 			}
-			
+
 			// Fallback to error message
 			if (!errorMessage) {
 				const fallbackMessage = (error as any).message || 'Unknown error';
-				errorMessage = typeof fallbackMessage === 'string' ? fallbackMessage : String(fallbackMessage);
+				errorMessage =
+					typeof fallbackMessage === 'string' ? fallbackMessage : String(fallbackMessage);
 			}
 
 			switch (statusCode) {
@@ -618,7 +601,7 @@ async function makeApiCall(
 					throw new NodeOperationError(this.getNode(), `Resource not found: ${errorMessage}`, {
 						level: 'warning',
 					});
-				case 422:
+				case 422: {
 					// Provide more detailed error message for validation errors
 					let detailedMessage = 'Validation error: ';
 					if (errorMessage) {
@@ -626,20 +609,23 @@ async function makeApiCall(
 					} else {
 						detailedMessage += 'The request parameters are invalid. ';
 					}
-					
+
 					// Add helpful hints for common 422 errors
 					const errorText = typeof errorMessage === 'string' ? errorMessage.toLowerCase() : '';
 					if (errorText.includes('schema')) {
-						detailedMessage += '\n\nTip: Check your JSON schema format. Properties should be objects like {"type": "string"} not just "string".';
+						detailedMessage +=
+							'\n\nTip: Check your JSON schema format. Properties should be objects like {"type": "string"} not just "string".';
 					} else if (errorText.includes('structured')) {
-						detailedMessage += '\n\nTip: Ensure your structured output schema is valid JSON Schema format.';
+						detailedMessage +=
+							'\n\nTip: Ensure your structured output schema is valid JSON Schema format.';
 					} else {
 						detailedMessage += '\n\nTip: Check your task description, URLs, and schema format.';
 					}
-					
+
 					throw new NodeOperationError(this.getNode(), detailedMessage, {
 						level: 'warning',
 					});
+				}
 				case 429:
 					throw new NodeOperationError(
 						this.getNode(),

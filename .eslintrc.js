@@ -14,7 +14,7 @@ module.exports = {
 	plugins: ['@typescript-eslint', 'n8n-nodes-base'],
 	extends: [
 		'eslint:recommended',
-		'@typescript-eslint/recommended',
+		'plugin:@typescript-eslint/recommended',
 		'plugin:n8n-nodes-base/nodes',
 	],
 	rules: {
@@ -24,5 +24,5 @@ module.exports = {
 		'@typescript-eslint/no-non-null-assertion': 'off',
 		'n8n-nodes-base/node-class-description-display-name-unsuffixed': 'off',
 	},
-	ignorePatterns: ['dist/**', 'node_modules/**'],
+	ignorePatterns: ['dist/**', 'node_modules/**', 'package.json'],
 };
