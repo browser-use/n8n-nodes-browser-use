@@ -1,63 +1,62 @@
 {
-  "name": "n8n-nodes-browser-use-cloud",
-  "version": "1.0.2",
-  "description": "n8n node for Browser Use Cloud API - Automate web tasks with AI agents",
-  "keywords": [
-    "n8n-community-node-package",
-    "browser-automation",
-    "ai-agent",
-    "web-scraping",
-    "browser-use"
-  ],
-  "license": "MIT",
-  "homepage": "https://github.com/browser-use/n8n-nodes-browser-use",
-  "author": {
-    "name": "Browser Use Team",
-    "email": "support@browser-use.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/browser-use/n8n-nodes-browser-use.git"
-  },
-  "engines": {
-    "node": ">=18.10",
-    "pnpm": ">=9.1"
-  },
-  "packageManager": "pnpm@9.1.0",
-  "main": "index.js",
-  "scripts": {
-    "preinstall": "npx only-allow pnpm",
-    "build": "NODE_NO_WARNINGS=1 tsc && gulp build:icons",
-    "dev": "NODE_NO_WARNINGS=1 tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials",
-    "lintfix": "eslint nodes credentials --fix",
-    "prepublishOnly": "pnpm build && pnpm lint"
-  },
-  "files": [
-    "dist",
-    "index.js"
-  ],
-  "n8n": {
-    "n8nNodesApiVersion": 1,
-    "credentials": [
-      "dist/credentials/BrowserUseApi.credentials.js"
-    ],
-    "nodes": [
-      "dist/nodes/BrowserUse/BrowserUse.node.js"
-    ]
-  },
-  "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.15.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "gulp": "^4.0.2",
-    "n8n-workflow": "*",
-    "prettier": "^3.3.2",
-    "typescript": "~5.5.0"
-  },
-  "peerDependencies": {
-    "n8n-workflow": "*"
-  }
+	"name": "n8n-nodes-browser-use-cloud",
+	"version": "1.0.3",
+	"description": "n8n node for Browser Use Cloud API - Automate web tasks with AI agents",
+	"keywords": [
+		"n8n-community-node-package",
+		"browser-automation",
+		"ai-agent",
+		"web-scraping",
+		"browser-use"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/browser-use/n8n-nodes-browser-use",
+	"author": {
+		"name": "Browser Use Team",
+		"email": "support@browser-use.com"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/browser-use/n8n-nodes-browser-use.git"
+	},
+	"engines": {
+		"node": ">=18.10",
+		"pnpm": ">=9.1"
+	},
+	"packageManager": "pnpm@9.1.0",
+	"main": "index.js",
+	"scripts": {
+		"build": "NODE_NO_WARNINGS=1 tsc && gulp build:icons",
+		"dev": "NODE_NO_WARNINGS=1 tsc --watch",
+		"format": "prettier nodes credentials --write",
+		"lint": "eslint nodes credentials",
+		"lintfix": "eslint nodes credentials --fix",
+		"prepublishOnly": "pnpm build && pnpm lint"
+	},
+	"files": [
+		"dist",
+		"index.js"
+	],
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"credentials": [
+			"dist/credentials/BrowserUseApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/BrowserUse/BrowserUse.node.js"
+		]
+	},
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "^7.18.0",
+		"@typescript-eslint/parser": "^7.15.0",
+		"eslint": "^8.56.0",
+		"eslint-plugin-n8n-nodes-base": "^1.16.1",
+		"gulp": "^4.0.2",
+		"n8n-workflow": "*",
+		"prettier": "^3.3.2",
+		"typescript": "~5.5.0"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
 }
