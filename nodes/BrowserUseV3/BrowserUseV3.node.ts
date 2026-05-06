@@ -4,6 +4,8 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
+	NodeApiError,
 	NodeOperationError,
 } from 'n8n-workflow';
 
@@ -1199,57 +1201,67 @@ async function makeApiCall(
 		);
 		return response || {};
 	} catch (error: unknown) {
+		const apiError = error as JsonObject;
+
 		if ((error as any).response) {
 			const statusCode = (error as any).response.status;
 			const responseData = (error as any).response.data;
 			const errorMessage = extractErrorMessage(error, responseData);
+			const httpCode = statusCode ? String(statusCode) : undefined;
 
 			switch (statusCode) {
 				case 400:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The request could not be processed: ${errorMessage}`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The request could not be processed',
+						description: errorMessage,
+						httpCode,
+						level: 'warning',
+					});
 				case 401:
 				case 403:
-					throw new NodeOperationError(
-						this.getNode(),
-						'Authentication failed. Verify that the Browser Use API key is correct and has access to this project.',
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'Authentication failed',
+						description:
+							'Verify that the Browser Use API key is correct and has access to this project.',
+						httpCode,
+						level: 'warning',
+					});
 				case 404:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The requested Browser Use resource was not found: ${errorMessage}`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The requested Browser Use resource was not found',
+						description: errorMessage,
+						httpCode,
+						level: 'warning',
+					});
 				case 422:
-					throw new NodeOperationError(
-						this.getNode(),
-						`Browser Use could not validate the request: ${errorMessage}`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'Browser Use could not validate the request',
+						description: errorMessage,
+						httpCode,
+						level: 'warning',
+					});
 				case 429:
-					throw new NodeOperationError(
-						this.getNode(),
-						'Browser Use rate limit or concurrent session limit exceeded. Try again later.',
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'Browser Use rate limit or concurrent session limit exceeded',
+						description: 'Try again later.',
+						httpCode,
+						level: 'warning',
+					});
 				default:
-					throw new NodeOperationError(
-						this.getNode(),
-						`Browser Use API request failed with status ${statusCode}: ${errorMessage}`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: `Browser Use API request failed with status ${statusCode}`,
+						description: errorMessage,
+						httpCode,
+						level: 'warning',
+					});
 			}
 		}
 
-		throw new NodeOperationError(
-			this.getNode(),
-			`Browser Use API request failed: ${(error as Error).message}`,
-			{ level: 'warning' },
-		);
+		throw new NodeApiError(this.getNode(), apiError, {
+			message: 'Browser Use API request failed',
+			description: (error as Error).message,
+			level: 'warning',
+		});
 	}
 }
 

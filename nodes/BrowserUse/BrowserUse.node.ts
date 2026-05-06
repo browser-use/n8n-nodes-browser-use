@@ -3,6 +3,8 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	JsonObject,
+	NodeApiError,
 	NodeOperationError,
 } from 'n8n-workflow';
 
@@ -937,59 +939,36 @@ async function makeApiCall(
 		);
 		return response;
 	} catch (error: unknown) {
-		// Handle different types of API errors
+		const apiError = error as JsonObject;
+
 		if ((error as any).response) {
 			const statusCode = (error as any).response.status;
 			const responseData = (error as any).response.data;
-
-			// Extract detailed error information
-			let errorMessage = '';
-			if (responseData) {
-				// Try different common error message fields
-				const rawMessage =
-					responseData.message ||
-					responseData.error ||
-					responseData.detail ||
-					responseData.details ||
-					(responseData.errors && Array.isArray(responseData.errors)
-						? responseData.errors.join(', ')
-						: '') ||
-					JSON.stringify(responseData);
-
-				// Ensure errorMessage is always a string
-				errorMessage = typeof rawMessage === 'string' ? rawMessage : String(rawMessage);
-			}
-
-			// Fallback to error message
-			if (!errorMessage) {
-				const fallbackMessage = (error as any).message || 'Unknown error';
-				errorMessage =
-					typeof fallbackMessage === 'string' ? fallbackMessage : String(fallbackMessage);
-			}
+			const errorMessage = extractErrorMessage(error, responseData);
+			const httpCode = statusCode ? String(statusCode) : undefined;
 
 			switch (statusCode) {
 				case 400:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The request could not be processed: ${errorMessage}. Please check your parameters and try again.`,
-						{
-							level: 'warning',
-						},
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The request could not be processed',
+						description: `${errorMessage}. Please check your parameters and try again.`,
+						httpCode,
+						level: 'warning',
+					});
 				case 401:
-					throw new NodeOperationError(
-						this.getNode(),
-						'Authentication was not successful. Please verify your API key in the credentials is correct.',
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'Authentication was not successful',
+						description: 'Please verify your API key in the credentials is correct.',
+						httpCode,
+						level: 'warning',
+					});
 				case 404:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The requested resource could not be found: ${errorMessage}. Please verify the resource exists.`,
-						{
-							level: 'warning',
-						},
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The requested resource could not be found',
+						description: `${errorMessage}. Please verify the resource exists.`,
+						httpCode,
+						level: 'warning',
+					});
 				case 422: {
 					// Provide more detailed error message for validation errors
 					let detailedMessage = 'The request parameters could not be validated: ';
@@ -1011,51 +990,74 @@ async function makeApiCall(
 						detailedMessage += '\n\nTip: Check your task description, URLs, and schema format.';
 					}
 
-					throw new NodeOperationError(this.getNode(), detailedMessage, {
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The request parameters could not be validated',
+						description: detailedMessage,
+						httpCode,
 						level: 'warning',
 					});
 				}
 				case 429:
-					throw new NodeOperationError(
-						this.getNode(),
-						'Rate limit exceeded or too many concurrent sessions. Please try again later.',
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'Rate limit exceeded or too many concurrent sessions',
+						description: 'Please try again later.',
+						httpCode,
+						level: 'warning',
+					});
 				case 500:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The Browser Use API encountered a server issue: ${errorMessage}. Please try again later or contact support if the issue persists.`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: 'The Browser Use API encountered a server issue',
+						description: `${errorMessage}. Please try again later or contact support if the issue persists.`,
+						httpCode,
+						level: 'warning',
+					});
 				default:
-					throw new NodeOperationError(
-						this.getNode(),
-						`The API request was not successful (status ${statusCode}): ${errorMessage}. Please check your configuration and try again.`,
-						{ level: 'warning' },
-					);
+					throw new NodeApiError(this.getNode(), apiError, {
+						message: `The API request was not successful (status ${statusCode})`,
+						description: `${errorMessage}. Please check your configuration and try again.`,
+						httpCode,
+						level: 'warning',
+					});
 			}
 		} else if ((error as any).code === 'ECONNREFUSED') {
-			throw new NodeOperationError(
-				this.getNode(),
-				'Connection to the Browser Use API could not be established. Please verify the service is available and try again.',
-				{ level: 'warning' },
-			);
+			throw new NodeApiError(this.getNode(), apiError, {
+				message: 'Connection to the Browser Use API could not be established',
+				description: 'Please verify the service is available and try again.',
+				level: 'warning',
+			});
 		} else if ((error as any).code === 'ETIMEDOUT') {
-			throw new NodeOperationError(
-				this.getNode(),
-				'The request to the Browser Use API timed out. Please check your network connection and try again.',
-				{ level: 'warning' },
-			);
+			throw new NodeApiError(this.getNode(), apiError, {
+				message: 'The request to the Browser Use API timed out',
+				description: 'Please check your network connection and try again.',
+				level: 'warning',
+			});
 		}
 
-		throw new NodeOperationError(
-			this.getNode(),
-			`An unexpected issue occurred: ${(error as any).message}. Please try again or contact support if the issue persists.`,
-			{
-				level: 'warning',
-			},
-		);
+		throw new NodeApiError(this.getNode(), apiError, {
+			message: 'An unexpected issue occurred while calling the Browser Use API',
+			description: `${(error as Error).message}. Please try again or contact support if the issue persists.`,
+			level: 'warning',
+		});
 	}
+}
+
+function extractErrorMessage(error: unknown, responseData: any): string {
+	if (responseData) {
+		const rawMessage =
+			responseData.message ||
+			responseData.error ||
+			responseData.detail ||
+			responseData.details ||
+			(responseData.errors && Array.isArray(responseData.errors)
+				? responseData.errors.join(', ')
+				: '') ||
+			JSON.stringify(responseData);
+
+		return typeof rawMessage === 'string' ? rawMessage : String(rawMessage);
+	}
+
+	const fallbackMessage = (error as Error).message || 'Unknown error';
+	return typeof fallbackMessage === 'string' ? fallbackMessage : String(fallbackMessage);
 }
 
 async function getTask(this: IExecuteFunctions, itemIndex: number): Promise<any> {
