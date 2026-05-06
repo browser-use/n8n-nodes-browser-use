@@ -1,7 +1,7 @@
 {
 	"name": "n8n-nodes-browser-use-cloud",
-	"version": "1.0.8",
-	"description": "n8n node for Browser Use Cloud API - Automate web tasks with AI agents",
+	"version": "1.1.0",
+	"description": "n8n node for Browser Use Cloud API v3 - agent sessions and cloud browsers",
 	"keywords": [
 		"n8n-community-node-package",
 		"browser-automation",
@@ -26,16 +26,17 @@
 	"packageManager": "pnpm@9.1.0",
 	"main": "index.js",
 	"scripts": {
-		"build": "NODE_NO_WARNINGS=1 tsc && gulp build:icons",
-		"dev": "NODE_NO_WARNINGS=1 tsc --watch",
+		"build": "n8n-node build && gulp build:icons",
+		"dev": "n8n-node dev",
 		"format": "prettier nodes credentials --write",
-		"lint": "eslint nodes credentials",
-		"lintfix": "eslint nodes credentials --fix",
+		"lint": "n8n-node lint",
+		"lintfix": "n8n-node lint --fix",
 		"prepublishOnly": "pnpm build && pnpm lint"
 	},
 	"files": [
 		"dist",
-		"index.js"
+		"index.js",
+		"CHANGELOG.md"
 	],
 	"n8n": {
 		"n8nNodesApiVersion": 1,
@@ -43,19 +44,41 @@
 			"dist/credentials/BrowserUseApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/BrowserUse/BrowserUse.node.js"
+			"dist/nodes/BrowserUse/BrowserUse.node.js",
+			"dist/nodes/BrowserUseV3/BrowserUseV3.node.js"
 		]
 	},
 	"devDependencies": {
-		"@typescript-eslint/eslint-plugin": "^7.18.0",
-		"@typescript-eslint/parser": "^7.18.0",
-		"eslint": "^8.57.0",
-		"eslint-plugin-n8n-nodes-base": "^1.16.4",
-		"gulp": "^4.0.2",
-		"prettier": "^3.7.0",
+		"@n8n/node-cli": "0.29.0",
+		"@typescript-eslint/eslint-plugin": "^8.59.2",
+		"@typescript-eslint/parser": "^8.59.2",
+		"eslint": "^8.57.1",
+		"eslint-plugin-n8n-nodes-base": "^1.16.6",
+		"gulp": "^5.0.1",
+		"n8n-workflow": "^2.16.0",
+		"prettier": "^3.8.3",
 		"typescript": "~5.7.0"
 	},
 	"peerDependencies": {
 		"n8n-workflow": "*"
+	},
+	"pnpm": {
+		"overrides": {
+			"ajv@^6.0.0": "6.15.0",
+			"@langchain/community": "1.1.28",
+			"axios": "1.16.0",
+			"brace-expansion@^2.0.0": "2.0.3",
+			"braces": "3.0.3",
+			"flatted": "3.4.2",
+			"follow-redirects": "1.16.0",
+			"form-data": "4.0.5",
+			"js-yaml": "4.1.1",
+			"langsmith": "0.6.1",
+			"lodash": "4.18.1",
+			"minimatch@^3.0.0": "3.1.5",
+			"minimatch@^9.0.0": "9.0.9",
+			"micromatch": "4.0.8",
+			"picomatch@^2.0.0": "2.3.2"
+		}
 	}
 }

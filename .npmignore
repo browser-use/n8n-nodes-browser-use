@@ -17,10 +17,6 @@ tests/
 *.test.ts
 *.spec.ts
 
-# Documentation
-*.md
-docs/
-
 # OS files
 .DS_Store
 Thumbs.db

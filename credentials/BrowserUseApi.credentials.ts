@@ -8,7 +8,7 @@ import {
 export class BrowserUseApi implements ICredentialType {
 	name = 'browserUseApi';
 	displayName = 'Browser Use API';
-	documentationUrl = 'https://docs.cloud.browser-use.com/';
+	documentationUrl = 'https://docs.browser-use.com/cloud';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',
@@ -24,7 +24,8 @@ export class BrowserUseApi implements ICredentialType {
 			name: 'baseUrl',
 			type: 'string',
 			default: 'https://api.browser-use.com/api/v2',
-			description: 'The base URL for the Browser Use API',
+			description:
+				'The base URL for the Browser Use API. The Browser Use v3 node automatically switches /api/v2 to /api/v3.',
 			required: true,
 		},
 	];
