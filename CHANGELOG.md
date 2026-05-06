@@ -16,6 +16,7 @@
 - Updated README documentation to describe both the existing v2 node and the new opt-in v3 node.
 - Updated package build and lint scripts to use the official `n8n-node` CLI.
 - Updated the GitHub Actions publish workflow to use npm provenance.
+- Wrapped Browser Use API HTTP failures in `NodeApiError` so n8n receives the upstream status and response context.
 
 ### Compatibility
 
