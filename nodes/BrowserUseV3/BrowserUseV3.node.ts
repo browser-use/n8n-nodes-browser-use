@@ -803,12 +803,7 @@ async function runSessionAndWait(this: IExecuteFunctions, itemIndex: number): Pr
 }
 
 function hasTaskStarted(session: any): boolean {
-	return (
-		session.status === 'running' ||
-		Number(session.stepCount ?? 0) > 0 ||
-		session.output != null ||
-		(typeof session.title === 'string' && session.title.length > 0)
-	);
+	return session.status === 'running' || Number(session.stepCount ?? 0) > 0;
 }
 
 function buildSessionBody(this: IExecuteFunctions, itemIndex: number, requireTask: boolean): any {
@@ -990,7 +985,7 @@ async function getSessionMessages(this: IExecuteFunctions, itemIndex: number): P
 	const query = new URLSearchParams();
 
 	if (options.limit) {
-		query.set('limit', String(options.limit));
+		query.set('limit', String(Math.min(Number(options.limit), 100)));
 	}
 
 	if (options.after) {
