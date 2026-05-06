@@ -924,6 +924,7 @@ async function getSession(this: IExecuteFunctions, itemIndex: number): Promise<a
 async function getSessions(this: IExecuteFunctions, itemIndex: number): Promise<any[]> {
 	const returnAll = this.getNodeParameter('returnAll', itemIndex, false) as boolean;
 	const limit = this.getNodeParameter('limit', itemIndex, 50) as number;
+	const targetCount = returnAll ? Number.POSITIVE_INFINITY : limit;
 	const pageSize = Math.min(returnAll ? 100 : limit, 100);
 	const collected: any[] = [];
 	let page = 1;
@@ -938,7 +939,11 @@ async function getSessions(this: IExecuteFunctions, itemIndex: number): Promise<
 		const sessions = Array.isArray(response.sessions) ? response.sessions : [];
 		collected.push(...sessions);
 
-		if (!returnAll || sessions.length < pageSize || collected.length >= response.total) {
+		if (
+			sessions.length < pageSize ||
+			collected.length >= targetCount ||
+			collected.length >= response.total
+		) {
 			shouldContinue = false;
 		} else {
 			page++;
@@ -1036,6 +1041,7 @@ async function getBrowserSessions(this: IExecuteFunctions, itemIndex: number): P
 	const returnAll = this.getNodeParameter('returnAll', itemIndex, false) as boolean;
 	const limit = this.getNodeParameter('limit', itemIndex, 50) as number;
 	const options = this.getNodeParameter('browserListOptions', itemIndex, {}) as Record<string, any>;
+	const targetCount = returnAll ? Number.POSITIVE_INFINITY : limit;
 	const pageSize = Math.min(returnAll ? 100 : limit, 100);
 	const collected: any[] = [];
 	let pageNumber = 1;
@@ -1055,7 +1061,11 @@ async function getBrowserSessions(this: IExecuteFunctions, itemIndex: number): P
 		const sessions = Array.isArray(response.items) ? response.items : [];
 		collected.push(...sessions);
 
-		if (!returnAll || sessions.length < pageSize || collected.length >= response.totalItems) {
+		if (
+			sessions.length < pageSize ||
+			collected.length >= targetCount ||
+			collected.length >= response.totalItems
+		) {
 			shouldContinue = false;
 		} else {
 			pageNumber++;
