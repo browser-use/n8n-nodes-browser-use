@@ -70,7 +70,7 @@ Use Session operations for the v3 agent API.
 
 Operations:
 
-- **Run and Wait**: Create or reuse a session, dispatch a task, and poll until the session reaches `idle`, `stopped`, `timed_out`, or `error`
+- **Run and Wait**: Create or reuse a session, dispatch a task, and poll until the task completes or the session reaches `stopped`, `timed_out`, or `error`
 - **Create**: Create an idle session or dispatch a task without polling
 - **Get**: Retrieve session details
 - **Get Many**: List sessions

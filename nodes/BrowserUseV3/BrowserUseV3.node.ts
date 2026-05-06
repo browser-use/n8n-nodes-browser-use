@@ -7,7 +7,7 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-const TERMINAL_SESSION_STATUSES = ['idle', 'stopped', 'timed_out', 'error'];
+const TERMINAL_SESSION_STATUSES = ['stopped', 'timed_out', 'error'];
 
 const V3_MODELS = [
 	{ name: 'Claude Sonnet 4.6', value: 'claude-sonnet-4.6' },
@@ -776,11 +776,16 @@ async function runSessionAndWait(this: IExecuteFunctions, itemIndex: number): Pr
 
 	const startTime = Date.now();
 	let lastSession = response;
+	let hasObservedTaskStart = hasTaskStarted(response);
 
 	while (Date.now() - startTime < waitTimeout * 1000) {
 		lastSession = await makeApiCall.call(this, 'GET', `/sessions/${response.id}`);
+		hasObservedTaskStart = hasObservedTaskStart || hasTaskStarted(lastSession);
 
-		if (TERMINAL_SESSION_STATUSES.includes(lastSession.status)) {
+		if (
+			TERMINAL_SESSION_STATUSES.includes(lastSession.status) ||
+			(lastSession.status === 'idle' && hasObservedTaskStart)
+		) {
 			return {
 				...lastSession,
 				cloudUrl: `https://cloud.browser-use.com/agent/${lastSession.id}`,
@@ -795,6 +800,15 @@ async function runSessionAndWait(this: IExecuteFunctions, itemIndex: number): Pr
 		warning: `The session did not complete within ${waitTimeout} seconds but may still be running.`,
 		cloudUrl: `https://cloud.browser-use.com/agent/${response.id}`,
 	};
+}
+
+function hasTaskStarted(session: any): boolean {
+	return (
+		session.status === 'running' ||
+		Number(session.stepCount ?? 0) > 0 ||
+		session.output != null ||
+		(typeof session.title === 'string' && session.title.length > 0)
+	);
 }
 
 function buildSessionBody(this: IExecuteFunctions, itemIndex: number, requireTask: boolean): any {
