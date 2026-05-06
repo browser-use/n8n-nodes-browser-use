@@ -28,5 +28,12 @@ module.exports = {
 		'n8n-nodes-base/node-class-description-inputs-wrong-regular-node': 'off',
 		'n8n-nodes-base/node-class-description-outputs-wrong': 'off',
 	},
-	ignorePatterns: ['dist/**', 'node_modules/**', 'package.json'],
+	ignorePatterns: [
+		'.eslintrc.js',
+		'dist/**',
+		'gulpfile.js',
+		'index.js',
+		'node_modules/**',
+		'package.json',
+	],
 };
