@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+
+- Removed direct `setTimeout` usage from the Browser Use v3 polling helper to satisfy n8n community package security checks.
+
 ## 1.1.0
 
 ### Added
