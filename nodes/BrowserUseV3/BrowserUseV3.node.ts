@@ -7,6 +7,7 @@ import {
 	JsonObject,
 	NodeApiError,
 	NodeOperationError,
+	sleep,
 } from 'n8n-workflow';
 
 const TERMINAL_SESSION_STATUSES = ['stopped', 'timed_out', 'error'];
@@ -1283,10 +1284,6 @@ function extractErrorMessage(error: unknown, responseData: any): string {
 
 function getVersionedBaseUrl(baseUrl: string, version: 'v2' | 'v3'): string {
 	return baseUrl.replace(/\/api\/v[23]\/?$/, `/api/${version}`);
-}
-
-function sleep(milliseconds: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function getSchemaTemplate(templateType: string): any {
