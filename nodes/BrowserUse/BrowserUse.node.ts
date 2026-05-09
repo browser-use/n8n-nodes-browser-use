@@ -1,12 +1,15 @@
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
+	INodeProperties,
 	INodeType,
 	INodeTypeDescription,
 	JsonObject,
 	NodeApiError,
 	NodeOperationError,
 } from 'n8n-workflow';
+
+import { BrowserUseV3 } from './BrowserUseV3';
 
 const SUPPORTED_MODELS = [
 	{ name: 'Browser Use 2.0 (Default)', value: 'browser-use-2.0' },
@@ -22,6 +25,22 @@ const SUPPORTED_MODELS = [
 	{ name: 'GPT-4.1 Mini', value: 'gpt-4.1-mini' },
 	{ name: 'O3', value: 'o3' },
 ] as const;
+
+function addApiVersionDisplayOptions(
+	properties: INodeProperties[],
+	apiVersion: 'v2' | 'v3',
+): INodeProperties[] {
+	return properties.map((property) => ({
+		...property,
+		displayOptions: {
+			...property.displayOptions,
+			show: {
+				...(property.displayOptions?.show ?? {}),
+				apiVersion: [apiVersion],
+			},
+		},
+	}));
+}
 
 export class BrowserUse implements INodeType {
 	description: INodeTypeDescription = {
@@ -44,490 +63,522 @@ export class BrowserUse implements INodeType {
 		],
 		properties: [
 			{
-				displayName: 'Resource',
-				name: 'resource',
+				displayName: 'API Version',
+				name: 'apiVersion',
 				type: 'options',
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Task',
-						value: 'task',
+						name: 'V2 Tasks',
+						value: 'v2',
+						description: 'Use the API v2 task workflow',
+					},
+					{
+						name: 'V3 Sessions and Browsers',
+						value: 'v3',
+						description: 'Use the API v3 session and computer-use browser workflows',
 					},
 				],
-				default: 'task',
+				default: 'v2',
+				description: 'Choose which Browser Use Cloud API to use for this node',
 			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['task'],
-					},
-				},
-				options: [
+			...addApiVersionDisplayOptions(
+				[
 					{
-						name: 'Execute',
-						value: 'execute',
-						description: 'Execute a task using an AI agent',
-						action: 'Execute a task',
-					},
-					{
-						name: 'Get',
-						value: 'get',
-						description: 'Retrieve details of a task',
-						action: 'Get a task',
-					},
-					{
-						name: 'Get Many',
-						value: 'getMany',
-						description: 'List all tasks in your account',
-						action: 'Get many tasks',
-					},
-					{
-						name: 'Stop',
-						value: 'stop',
-						description: 'Stop a running task',
-						action: 'Stop a task',
-					},
-					{
-						name: 'Update',
-						value: 'update',
-						description: 'Update a task',
-						action: 'Update a task',
-					},
-				],
-				default: 'execute',
-			},
-			{
-				displayName: 'Task ID',
-				name: 'taskId',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['get', 'stop', 'update'],
-					},
-				},
-				placeholder: 'e.g. task_abc123xyz',
-				description: 'The unique identifier of the task',
-				required: true,
-			},
-			{
-				displayName: 'Task Description',
-				name: 'task',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-					},
-				},
-				placeholder: 'e.g. Go to Google and search for browser automation',
-				description: 'Natural language description of what you want the AI agent to do',
-				required: true,
-			},
-			{
-				displayName: 'Starting URL',
-				name: 'startUrl',
-				type: 'string',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-					},
-				},
-				placeholder: 'e.g. https://example.com',
-				description: 'The URL where the browser should start (optional)',
-			},
-			{
-				displayName: 'Timeout',
-				name: 'timeout',
-				type: 'number',
-				default: 300,
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-					},
-				},
-				description: 'Maximum time in seconds to wait for task completion (10-3600 seconds)',
-				typeOptions: {
-					minValue: 10,
-					maxValue: 3600,
-				},
-			},
-			{
-				displayName: 'Extract Structured Data',
-				name: 'enableStructuredOutput',
-				type: 'boolean',
-				default: false,
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-					},
-				},
-				description: 'Whether to extract data in a specific JSON format for easier processing',
-			},
-			{
-				displayName: 'Configure the data structure you want to extract below ↓',
-				name: 'structuredOutputNotice',
-				type: 'notice',
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-						enableStructuredOutput: [true],
-					},
-				},
-				typeOptions: {
-					theme: 'info',
-				},
-			},
-			{
-				displayName: 'Data Template',
-				name: 'schemaTemplate',
-				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-						enableStructuredOutput: [true],
-					},
-				},
-				options: [
-					{
-						name: 'Article/Blog Content',
-						value: 'article',
-						description:
-							'Extracts: title, author, publishDate, content, summary, tags, readTime, category',
-					},
-					{
-						name: 'Company Information',
-						value: 'company',
-						description:
-							'Extracts: companyName, industry, description, foundedYear, headquarters, employees, revenue, website, contactInfo, keyPeople',
-					},
-					{
-						name: 'Contact Information',
-						value: 'contact',
-						description:
-							'Extracts: companyName, email, phone, address, website, socialMedia (twitter, linkedin, facebook)',
-					},
-					{
-						name: 'Custom Format',
-						value: 'custom',
-						description: 'Define your own JSON schema structure',
-					},
-					{
-						name: 'Product Information',
-						value: 'product',
-						description:
-							'Extracts: productName, price, description, inStock, images, specifications, rating, reviews',
-					},
-				],
-				default: 'custom',
-				description: 'Choose a pre-built template or define a custom format',
-			},
-			{
-				displayName:
-					'💡 Using a pre-built template will automatically extract the fields shown above. To see the full JSON schema or create your own structure, select "Custom Format".',
-				name: 'templateSchemaPreview',
-				type: 'notice',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-						enableStructuredOutput: [true],
-						schemaTemplate: ['product', 'contact', 'article', 'company'],
-					},
-				},
-				default: '',
-				typeOptions: {
-					theme: 'info',
-				},
-			},
-			{
-				displayName: 'Custom Data Format (JSON Schema)',
-				name: 'outputSchema',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-						enableStructuredOutput: [true],
-						schemaTemplate: ['custom'],
-					},
-				},
-				default:
-					'{\n  "type": "object",\n  "properties": {\n    "title": {"type": "string"},\n    "description": {"type": "string"},\n    "data": {"type": "array"}\n  },\n  "required": ["title"]\n}',
-				description: 'Define the exact JSON schema structure you want the AI to extract',
-				placeholder: 'Define your custom JSON schema here',
-			},
-			{
-				displayName: 'Advanced Options',
-				name: 'advancedOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['execute'],
-					},
-				},
-				options: [
-					{
-						displayName: 'AI Model',
-						name: 'llm',
+						displayName: 'Resource',
+						name: 'resource',
 						type: 'options',
-						options: [...SUPPORTED_MODELS],
-						default: 'browser-use-2.0',
-						description: 'The AI model to use for executing the task',
-					},
-					{
-						displayName: 'Allowed Domains',
-						name: 'allowedDomains',
-						type: 'json',
-						default: '[]',
-						description:
-							'Limit browsing to specific domains (JSON array of strings, e.g. ["example.com","docs.example.com"])',
-					},
-					{
-						displayName: 'Flash Mode',
-						name: 'flashMode',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to enable flash mode for faster execution',
-					},
-					{
-						displayName: 'Highlight Elements',
-						name: 'highlightElements',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to highlight elements on the page during execution',
-					},
-					{
-						displayName: 'Judge',
-						name: 'judge',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to enable judging of task results',
-					},
-					{
-						displayName: 'Judge Ground Truth',
-						name: 'judgeGroundTruth',
-						type: 'string',
-						default: '',
-						description: 'Ground truth data for judging (optional)',
-					},
-					{
-						displayName: 'Judge LLM',
-						name: 'judgeLlm',
-						type: 'options',
-						options: [...SUPPORTED_MODELS],
-						default: 'browser-use-2.0',
-						description: 'The AI model to use for judging results',
-					},
-					{
-						displayName: 'Max Steps',
-						name: 'maxSteps',
-						type: 'number',
-						default: 30,
-						description: 'Maximum number of steps the AI agent can take to complete the task',
-						typeOptions: {
-							minValue: 1,
-							maxValue: 200,
-						},
-					},
-					{
-						displayName: 'Metadata',
-						name: 'metadata',
-						type: 'json',
-						default: '{}',
-						description:
-							'Additional metadata to attach to the task (JSON object, string values only)',
-					},
-					{
-						displayName: 'Op Vault ID',
-						name: 'opVaultId',
-						type: 'string',
-						default: '',
-						description: 'Operation vault ID to use for this task',
-					},
-					{
-						displayName: 'Secrets',
-						name: 'secrets',
-						type: 'json',
-						default: '{}',
-						description:
-							'Secrets available to the agent during execution (JSON object, string values only)',
-					},
-					{
-						displayName: 'Session ID',
-						name: 'sessionId',
-						type: 'string',
-						default: '',
-						description:
-							'Run this task within an existing session to reuse browser state (optional)',
-					},
-					{
-						displayName: 'System Prompt Extension',
-						name: 'systemPromptExtension',
-						type: 'string',
-						default: '',
-						description: 'Additional system prompt instructions for the agent',
-					},
-					{
-						displayName: 'Thinking',
-						name: 'thinking',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to enable reasoning visualization for the task',
-					},
-					{
-						displayName: 'Vision',
-						name: 'vision',
-						type: 'options',
+						noDataExpression: true,
 						options: [
 							{
-								name: 'Auto',
-								value: 'auto',
-							},
-							{
-								name: 'Enabled',
-								value: true,
-							},
-							{
-								name: 'Disabled',
-								value: false,
+								name: 'Task',
+								value: 'task',
 							},
 						],
-						default: 'auto',
-						description: 'Enable vision capabilities (auto, enabled, disabled)',
+						default: 'task',
 					},
-				],
-			},
-			{
-				displayName: 'Update Fields',
-				name: 'updateFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['update'],
+					{
+						displayName: 'Operation',
+						name: 'operation',
+						type: 'options',
+						noDataExpression: true,
+						displayOptions: {
+							show: {
+								resource: ['task'],
+							},
+						},
+						options: [
+							{
+								name: 'Execute',
+								value: 'execute',
+								description: 'Execute a task using an AI agent',
+								action: 'Execute a task',
+							},
+							{
+								name: 'Get',
+								value: 'get',
+								description: 'Retrieve details of a task',
+								action: 'Get a task',
+							},
+							{
+								name: 'Get Many',
+								value: 'getMany',
+								description: 'List all tasks in your account',
+								action: 'Get many tasks',
+							},
+							{
+								name: 'Stop',
+								value: 'stop',
+								description: 'Stop a running task',
+								action: 'Stop a task',
+							},
+							{
+								name: 'Update',
+								value: 'update',
+								description: 'Update a task',
+								action: 'Update a task',
+							},
+						],
+						default: 'execute',
 					},
-				},
-				options: [
+					{
+						displayName: 'Task ID',
+						name: 'taskId',
+						type: 'string',
+						default: '',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['get', 'stop', 'update'],
+							},
+						},
+						placeholder: 'e.g. task_abc123xyz',
+						description: 'The unique identifier of the task',
+						required: true,
+					},
 					{
 						displayName: 'Task Description',
 						name: 'task',
 						type: 'string',
 						default: '',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+							},
+						},
 						placeholder: 'e.g. Go to Google and search for browser automation',
-						description: 'Update the task description',
+						description: 'Natural language description of what you want the AI agent to do',
+						required: true,
 					},
 					{
-						displayName: 'Status',
-						name: 'status',
-						type: 'options',
-						options: [
-							{
-								name: 'Running',
-								value: 'running',
+						displayName: 'Starting URL',
+						name: 'startUrl',
+						type: 'string',
+						default: '',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
 							},
-							{
-								name: 'Stopped',
-								value: 'stopped',
-							},
-						],
-						default: 'running',
-						description: 'Update the task status',
+						},
+						placeholder: 'e.g. https://example.com',
+						description: 'The URL where the browser should start (optional)',
 					},
-				],
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['getMany'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['getMany'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['getMany'],
-					},
-				},
-				options: [
 					{
-						displayName: 'Status',
-						name: 'status',
+						displayName: 'Timeout',
+						name: 'timeout',
+						type: 'number',
+						default: 300,
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+							},
+						},
+						description: 'Maximum time in seconds to wait for task completion (10-3600 seconds)',
+						typeOptions: {
+							minValue: 10,
+							maxValue: 3600,
+						},
+					},
+					{
+						displayName: 'Extract Structured Data',
+						name: 'enableStructuredOutput',
+						type: 'boolean',
+						default: false,
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+							},
+						},
+						description: 'Whether to extract data in a specific JSON format for easier processing',
+					},
+					{
+						displayName: 'Configure the data structure you want to extract below ↓',
+						name: 'structuredOutputNotice',
+						type: 'notice',
+						default: '',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+								enableStructuredOutput: [true],
+							},
+						},
+						typeOptions: {
+							theme: 'info',
+						},
+					},
+					{
+						displayName: 'Data Template',
+						name: 'schemaTemplate',
 						type: 'options',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+								enableStructuredOutput: [true],
+							},
+						},
 						options: [
 							{
-								name: 'All',
-								value: 'all',
+								name: 'Article/Blog Content',
+								value: 'article',
+								description:
+									'Extracts: title, author, publishDate, content, summary, tags, readTime, category',
 							},
 							{
-								name: 'Finished',
-								value: 'finished',
+								name: 'Company Information',
+								value: 'company',
+								description:
+									'Extracts: companyName, industry, description, foundedYear, headquarters, employees, revenue, website, contactInfo, keyPeople',
 							},
 							{
-								name: 'Running',
-								value: 'running',
+								name: 'Contact Information',
+								value: 'contact',
+								description:
+									'Extracts: companyName, email, phone, address, website, socialMedia (twitter, linkedin, facebook)',
 							},
 							{
-								name: 'Stopped',
-								value: 'stopped',
+								name: 'Custom Format',
+								value: 'custom',
+								description: 'Define your own JSON schema structure',
+							},
+							{
+								name: 'Product Information',
+								value: 'product',
+								description:
+									'Extracts: productName, price, description, inStock, images, specifications, rating, reviews',
 							},
 						],
-						default: 'all',
-						description: 'Filter tasks by their status',
+						default: 'custom',
+						description: 'Choose a pre-built template or define a custom format',
+					},
+					{
+						displayName:
+							'💡 Using a pre-built template will automatically extract the fields shown above. To see the full JSON schema or create your own structure, select "Custom Format".',
+						name: 'templateSchemaPreview',
+						type: 'notice',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+								enableStructuredOutput: [true],
+								schemaTemplate: ['product', 'contact', 'article', 'company'],
+							},
+						},
+						default: '',
+						typeOptions: {
+							theme: 'info',
+						},
+					},
+					{
+						displayName: 'Custom Data Format (JSON Schema)',
+						name: 'outputSchema',
+						type: 'json',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+								enableStructuredOutput: [true],
+								schemaTemplate: ['custom'],
+							},
+						},
+						default:
+							'{\n  "type": "object",\n  "properties": {\n    "title": {"type": "string"},\n    "description": {"type": "string"},\n    "data": {"type": "array"}\n  },\n  "required": ["title"]\n}',
+						description: 'Define the exact JSON schema structure you want the AI to extract',
+						placeholder: 'Define your custom JSON schema here',
+					},
+					{
+						displayName: 'Advanced Options',
+						name: 'advancedOptions',
+						type: 'collection',
+						placeholder: 'Add Option',
+						default: {},
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['execute'],
+							},
+						},
+						options: [
+							{
+								displayName: 'AI Model',
+								name: 'llm',
+								type: 'options',
+								options: [...SUPPORTED_MODELS],
+								default: 'browser-use-2.0',
+								description: 'The AI model to use for executing the task',
+							},
+							{
+								displayName: 'Allowed Domains',
+								name: 'allowedDomains',
+								type: 'json',
+								default: '[]',
+								description:
+									'Limit browsing to specific domains (JSON array of strings, e.g. ["example.com","docs.example.com"])',
+							},
+							{
+								displayName: 'Flash Mode',
+								name: 'flashMode',
+								type: 'boolean',
+								default: false,
+								description: 'Whether to enable flash mode for faster execution',
+							},
+							{
+								displayName: 'Highlight Elements',
+								name: 'highlightElements',
+								type: 'boolean',
+								default: false,
+								description: 'Whether to highlight elements on the page during execution',
+							},
+							{
+								displayName: 'Judge',
+								name: 'judge',
+								type: 'boolean',
+								default: false,
+								description: 'Whether to enable judging of task results',
+							},
+							{
+								displayName: 'Judge Ground Truth',
+								name: 'judgeGroundTruth',
+								type: 'string',
+								default: '',
+								description: 'Ground truth data for judging (optional)',
+							},
+							{
+								displayName: 'Judge LLM',
+								name: 'judgeLlm',
+								type: 'options',
+								options: [...SUPPORTED_MODELS],
+								default: 'browser-use-2.0',
+								description: 'The AI model to use for judging results',
+							},
+							{
+								displayName: 'Max Steps',
+								name: 'maxSteps',
+								type: 'number',
+								default: 30,
+								description: 'Maximum number of steps the AI agent can take to complete the task',
+								typeOptions: {
+									minValue: 1,
+									maxValue: 200,
+								},
+							},
+							{
+								displayName: 'Metadata',
+								name: 'metadata',
+								type: 'json',
+								default: '{}',
+								description:
+									'Additional metadata to attach to the task (JSON object, string values only)',
+							},
+							{
+								displayName: 'Op Vault ID',
+								name: 'opVaultId',
+								type: 'string',
+								default: '',
+								description: 'Operation vault ID to use for this task',
+							},
+							{
+								displayName: 'Secrets',
+								name: 'secrets',
+								type: 'json',
+								default: '{}',
+								description:
+									'Secrets available to the agent during execution (JSON object, string values only)',
+							},
+							{
+								displayName: 'Session ID',
+								name: 'sessionId',
+								type: 'string',
+								default: '',
+								description:
+									'Run this task within an existing session to reuse browser state (optional)',
+							},
+							{
+								displayName: 'System Prompt Extension',
+								name: 'systemPromptExtension',
+								type: 'string',
+								default: '',
+								description: 'Additional system prompt instructions for the agent',
+							},
+							{
+								displayName: 'Thinking',
+								name: 'thinking',
+								type: 'boolean',
+								default: false,
+								description: 'Whether to enable reasoning visualization for the task',
+							},
+							{
+								displayName: 'Vision',
+								name: 'vision',
+								type: 'options',
+								options: [
+									{
+										name: 'Auto',
+										value: 'auto',
+									},
+									{
+										name: 'Enabled',
+										value: true,
+									},
+									{
+										name: 'Disabled',
+										value: false,
+									},
+								],
+								default: 'auto',
+								description: 'Enable vision capabilities (auto, enabled, disabled)',
+							},
+						],
+					},
+					{
+						displayName: 'Update Fields',
+						name: 'updateFields',
+						type: 'collection',
+						placeholder: 'Add Field',
+						default: {},
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['update'],
+							},
+						},
+						options: [
+							{
+								displayName: 'Task Description',
+								name: 'task',
+								type: 'string',
+								default: '',
+								placeholder: 'e.g. Go to Google and search for browser automation',
+								description: 'Update the task description',
+							},
+							{
+								displayName: 'Status',
+								name: 'status',
+								type: 'options',
+								options: [
+									{
+										name: 'Running',
+										value: 'running',
+									},
+									{
+										name: 'Stopped',
+										value: 'stopped',
+									},
+								],
+								default: 'running',
+								description: 'Update the task status',
+							},
+						],
+					},
+					{
+						displayName: 'Return All',
+						name: 'returnAll',
+						type: 'boolean',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['getMany'],
+							},
+						},
+						default: false,
+						description: 'Whether to return all results or only up to a given limit',
+					},
+					{
+						displayName: 'Limit',
+						name: 'limit',
+						type: 'number',
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['getMany'],
+								returnAll: [false],
+							},
+						},
+						typeOptions: {
+							minValue: 1,
+						},
+						default: 50,
+						description: 'Max number of results to return',
+					},
+					{
+						displayName: 'Options',
+						name: 'options',
+						type: 'collection',
+						placeholder: 'Add Option',
+						default: {},
+						displayOptions: {
+							show: {
+								resource: ['task'],
+								operation: ['getMany'],
+							},
+						},
+						options: [
+							{
+								displayName: 'Status',
+								name: 'status',
+								type: 'options',
+								options: [
+									{
+										name: 'All',
+										value: 'all',
+									},
+									{
+										name: 'Finished',
+										value: 'finished',
+									},
+									{
+										name: 'Running',
+										value: 'running',
+									},
+									{
+										name: 'Stopped',
+										value: 'stopped',
+									},
+								],
+								default: 'all',
+								description: 'Filter tasks by their status',
+							},
+						],
 					},
 				],
-			},
+				'v2',
+			),
+			...addApiVersionDisplayOptions(new BrowserUseV3().description.properties, 'v3'),
 		],
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const apiVersion = this.getNodeParameter('apiVersion', 0, 'v2') as string;
+
+		if (apiVersion === 'v3') {
+			return new BrowserUseV3().execute.call(this);
+		}
+
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
 		const resource = this.getNodeParameter('resource', 0) as string;

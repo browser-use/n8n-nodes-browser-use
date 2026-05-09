@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+### Changed
+
+- Consolidated API v2 and API v3 into the main **Browser Use** node with an **API Version** dropdown.
+- Updated credential testing so credentials saved with `/api/v3` are tested against the compatible v2 task endpoint.
+
 ## 1.1.1
 
 ### Fixed

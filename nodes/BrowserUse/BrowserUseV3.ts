@@ -1,4 +1,4 @@
-/* eslint-disable n8n-nodes-base/node-filename-against-convention */
+/* eslint-disable n8n-nodes-base/node-filename-against-convention -- Internal v3 implementation registered through BrowserUse.node.ts. */
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
