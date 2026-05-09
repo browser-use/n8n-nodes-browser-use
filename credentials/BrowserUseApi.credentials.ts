@@ -25,7 +25,7 @@ export class BrowserUseApi implements ICredentialType {
 			type: 'string',
 			default: 'https://api.browser-use.com/api/v2',
 			description:
-				'The base URL for the Browser Use API. The Browser Use v3 node automatically switches /api/v2 to /api/v3.',
+				'The base URL for the Browser Use API. Leave this as the default; the node switches between v2 and v3 based on the API Version field.',
 			required: true,
 		},
 	];
@@ -41,7 +41,8 @@ export class BrowserUseApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: '={{$credentials.baseUrl}}',
+			baseURL:
+				'={{$credentials.baseUrl.replace(/\\/api\\/v3\\/?$/, "/api/v2").replace(/\\/$/, "")}}',
 			url: '/tasks',
 			method: 'GET',
 		},

@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-browser-use-cloud",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "n8n node for Browser Use Cloud API v3 - agent sessions and cloud browsers",
 	"keywords": [
 		"n8n-community-node-package",
@@ -44,8 +44,7 @@
 			"dist/credentials/BrowserUseApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/BrowserUse/BrowserUse.node.js",
-			"dist/nodes/BrowserUseV3/BrowserUseV3.node.js"
+			"dist/nodes/BrowserUse/BrowserUse.node.js"
 		]
 	},
 	"devDependencies": {

@@ -1,6 +1,6 @@
 # n8n-nodes-browser-use
 
-An n8n community node package for Browser Use Cloud. It keeps the existing API v2 task node and adds an opt-in API v3 node for session-based agent workflows and standalone cloud browser sessions.
+An n8n community node package for Browser Use Cloud. The single **Browser Use** node supports both API v2 task workflows and API v3 session-based agent workflows.
 
 <p>
   <img src="https://raw.githubusercontent.com/browser-use/browser-use/main/static/browser-use.png" alt="Browser Use" width="360">
@@ -10,10 +10,9 @@ An n8n community node package for Browser Use Cloud. It keeps the existing API v
 
 Browser Use Cloud lets AI agents control managed browsers for web research, data extraction, form filling, testing, and multi-step workflows.
 
-This package includes two n8n nodes:
+This package includes one n8n node:
 
-- **Browser Use**: the existing API v2 task node for current workflows
-- **Browser Use v3**: the new API v3 node with Session and Browser resources
+- **Browser Use**: choose **API Version** in the node UI to use v2 Tasks or v3 Sessions and Browsers
 
 ## Installation
 
@@ -44,13 +43,13 @@ The default Base URL remains:
 https://api.browser-use.com/api/v2
 ```
 
-The Browser Use v3 node automatically switches that credential URL from `/api/v2` to `/api/v3` internally, so existing credentials continue to work. The node authenticates with the `X-Browser-Use-API-Key` header.
+Leave the credential Base URL at the default. In the **Browser Use** node, use the **API Version** dropdown to switch between **v2 Tasks** and **v3 Sessions and Browsers**. The node switches the API path internally, so existing credentials continue to work. The node authenticates with the `X-Browser-Use-API-Key` header.
 
 ## Nodes
 
-### Browser Use
+### API Version: v2 Tasks
 
-The existing v2 node remains available for backward compatibility. It uses the v2 `/tasks` API and keeps the same operations:
+The v2 mode remains available for backward compatibility. It uses the v2 `/tasks` API and keeps the same operations:
 
 - **Execute**
 - **Get**
@@ -58,11 +57,11 @@ The existing v2 node remains available for backward compatibility. It uses the v
 - **Stop**
 - **Update**
 
-Use this node for existing workflows that already depend on API v2 task behavior or v2-specific options such as allowed domains, secrets, max steps, judge settings, and v2 model names.
+Use v2 mode for existing workflows that already depend on API v2 task behavior or v2-specific options such as allowed domains, secrets, max steps, judge settings, and v2 model names.
 
-### Browser Use v3
+### API Version: v3 Sessions and Browsers
 
-Use this node for the new v3 API.
+Use v3 mode for the new API v3 session and browser workflows.
 
 #### Session
 
