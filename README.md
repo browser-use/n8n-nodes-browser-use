@@ -185,6 +185,7 @@ The node returns clear n8n errors for authentication failures, validation errors
 - [Browser Use API v3 Reference](https://docs.browser-use.com/cloud/api-reference)
 - [Browser Use API v2 Reference](https://docs.browser-use.com/cloud/api-v2-overview)
 - [Browser Use Dashboard](https://cloud.browser-use.com)
+- [Browser Use Box](https://browser-use.com/bux) - an always-on VPS agent for Browser Use workflows. [Watch the 15-second demo](https://www.tiktok.com/@browser_use/video/7639824093721758989).
 - [n8n Community Nodes](https://docs.n8n.io/integrations/community-nodes/)
 
 ## License
