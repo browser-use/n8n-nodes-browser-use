@@ -20,7 +20,7 @@
 		"url": "https://github.com/browser-use/n8n-nodes-browser-use.git"
 	},
 	"engines": {
-		"node": ">=18.10",
+		"node": ">=20.19",
 		"pnpm": ">=9.1"
 	},
 	"packageManager": "pnpm@9.1.0",
