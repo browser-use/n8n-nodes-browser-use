@@ -28,6 +28,23 @@ module.exports = {
 		'n8n-nodes-base/node-class-description-inputs-wrong-regular-node': 'off',
 		'n8n-nodes-base/node-class-description-outputs-wrong': 'off',
 	},
+	overrides: [
+		{
+			// Plain CommonJS tests that drive the compiled output; they are deliberately
+			// outside tsconfig.json, so the type-aware parser must not run on them.
+			files: ['test/**/*.js'],
+			parserOptions: {
+				project: null,
+				sourceType: 'script',
+				ecmaVersion: 2022,
+			},
+			rules: {
+				// The package is CommonJS, so require() is the correct import style here.
+				'@typescript-eslint/no-require-imports': 'off',
+				'@typescript-eslint/no-var-requires': 'off',
+			},
+		},
+	],
 	ignorePatterns: [
 		'.eslintrc.js',
 		'dist/**',

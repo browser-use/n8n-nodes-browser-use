@@ -48,3 +48,7 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Runs against dist/, so it must follow the build step.
+      - name: Test
+        run: pnpm test

@@ -28,11 +28,12 @@
 	"scripts": {
 		"build": "n8n-node build && gulp build:icons",
 		"dev": "n8n-node dev",
-		"format": "prettier nodes credentials --write",
-		"format:check": "prettier nodes credentials --check",
+		"format": "prettier nodes credentials test --write",
+		"format:check": "prettier nodes credentials test --check",
 		"lint": "n8n-node lint",
 		"lintfix": "n8n-node lint --fix",
-		"prepublishOnly": "pnpm build && pnpm lint"
+		"test": "node --test \"test/*.test.js\"",
+		"prepublishOnly": "pnpm build && pnpm lint && pnpm test"
 	},
 	"files": [
 		"dist",
