@@ -9,7 +9,10 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
+import { BrowserUseApiVersion, getVersionedBaseUrl } from './ApiVersion';
 import { BrowserUseV3 } from './BrowserUseV3';
+import { BrowserUseV4 } from './BrowserUseV4';
+import { getSchemaTemplate } from './SchemaTemplates';
 
 const SUPPORTED_MODELS = [
 	{ name: 'Browser Use 2.0 (Default)', value: 'browser-use-2.0' },
@@ -28,7 +31,7 @@ const SUPPORTED_MODELS = [
 
 function addApiVersionDisplayOptions(
 	properties: INodeProperties[],
-	apiVersion: 'v2' | 'v3',
+	apiVersion: BrowserUseApiVersion,
 ): INodeProperties[] {
 	return properties.map((property) => ({
 		...property,
@@ -69,17 +72,24 @@ export class BrowserUse implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'V2 Tasks',
+						name: 'V2 Tasks (Legacy)',
 						value: 'v2',
-						description: 'Use the API v2 task workflow',
+						description: 'Use the legacy API v2 task workflow, which is no longer maintained',
 					},
 					{
 						name: 'V3 Sessions and Browsers',
 						value: 'v3',
-						description: 'Use the API v3 session and computer-use browser workflows',
+						description:
+							'Use the API v3 session and computer-use browser workflows, which favour speed and cost',
+					},
+					{
+						name: 'V4 Runs, Sessions, and Browsers',
+						value: 'v4',
+						description:
+							'Use the API v4 run workflows, which are the most accurate and are recommended for new integrations',
 					},
 				],
-				default: 'v2',
+				default: 'v4',
 				description: 'Choose which Browser Use Cloud API to use for this node',
 			},
 			...addApiVersionDisplayOptions(
@@ -569,11 +579,18 @@ export class BrowserUse implements INodeType {
 				'v2',
 			),
 			...addApiVersionDisplayOptions(new BrowserUseV3().description.properties, 'v3'),
+			...addApiVersionDisplayOptions(new BrowserUseV4().description.properties, 'v4'),
 		],
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		// Workflows saved before the v4 dropdown existed have no stored apiVersion, so they
+		// must keep falling back to v2 even though new nodes now default to v4.
 		const apiVersion = this.getNodeParameter('apiVersion', 0, 'v2') as string;
+
+		if (apiVersion === 'v4') {
+			return new BrowserUseV4().execute.call(this);
+		}
 
 		if (apiVersion === 'v3') {
 			return new BrowserUseV3().execute.call(this);
@@ -969,7 +986,7 @@ async function makeApiCall(
 	const credentials = await this.getCredentials('browserUseApi');
 	const options: any = {
 		method,
-		baseURL: credentials.baseUrl as string,
+		baseURL: getVersionedBaseUrl(credentials.baseUrl as string, 'v2'),
 		url: endpoint,
 		headers: {
 			'Content-Type': 'application/json',
@@ -1210,96 +1227,4 @@ async function updateTask(this: IExecuteFunctions, itemIndex: number): Promise<a
 
 	const response = await makeApiCall.call(this, 'PATCH', `/tasks/${taskId.trim()}`, body);
 	return response;
-}
-
-function getSchemaTemplate(templateType: string): any {
-	const templates: Record<string, any> = {
-		product: {
-			type: 'object',
-			properties: {
-				productName: { type: 'string' },
-				price: { type: 'string' },
-				description: { type: 'string' },
-				inStock: { type: 'boolean' },
-				images: {
-					type: 'array',
-					items: { type: 'string' },
-				},
-				specifications: { type: 'object' },
-				rating: { type: 'number' },
-				reviews: { type: 'number' },
-			},
-			required: ['productName', 'price'],
-		},
-		contact: {
-			type: 'object',
-			properties: {
-				companyName: { type: 'string' },
-				email: { type: 'string' },
-				phone: { type: 'string' },
-				address: { type: 'string' },
-				website: { type: 'string' },
-				socialMedia: {
-					type: 'object',
-					properties: {
-						twitter: { type: 'string' },
-						linkedin: { type: 'string' },
-						facebook: { type: 'string' },
-					},
-				},
-			},
-			required: ['companyName'],
-		},
-		article: {
-			type: 'object',
-			properties: {
-				title: { type: 'string' },
-				author: { type: 'string' },
-				publishDate: { type: 'string' },
-				content: { type: 'string' },
-				summary: { type: 'string' },
-				tags: {
-					type: 'array',
-					items: { type: 'string' },
-				},
-				readTime: { type: 'string' },
-				category: { type: 'string' },
-			},
-			required: ['title', 'content'],
-		},
-		company: {
-			type: 'object',
-			properties: {
-				companyName: { type: 'string' },
-				industry: { type: 'string' },
-				description: { type: 'string' },
-				foundedYear: { type: 'string' },
-				headquarters: { type: 'string' },
-				employees: { type: 'string' },
-				revenue: { type: 'string' },
-				website: { type: 'string' },
-				contactInfo: {
-					type: 'object',
-					properties: {
-						email: { type: 'string' },
-						phone: { type: 'string' },
-						address: { type: 'string' },
-					},
-				},
-				keyPeople: {
-					type: 'array',
-					items: {
-						type: 'object',
-						properties: {
-							name: { type: 'string' },
-							position: { type: 'string' },
-						},
-					},
-				},
-			},
-			required: ['companyName', 'description'],
-		},
-	};
-
-	return templates[templateType] || templates.product;
 }

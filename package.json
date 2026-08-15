@@ -1,7 +1,7 @@
 {
 	"name": "n8n-nodes-browser-use-cloud",
-	"version": "1.1.2",
-	"description": "n8n node for Browser Use Cloud API v3 - agent sessions and cloud browsers",
+	"version": "1.2.0",
+	"description": "n8n node for Browser Use Cloud API v4, v3, and v2 - agent runs, sessions, and cloud browsers",
 	"keywords": [
 		"n8n-community-node-package",
 		"browser-automation",

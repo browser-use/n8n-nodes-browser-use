@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.0
+
+### Added
+
+- Added **V4 Runs, Sessions, and Browsers** to the **API Version** dropdown on the **Browser Use** node.
+- Added v4 **Run** operations: run and wait, create, get, get status, get many, cancel, get events, and get attachments.
+- Added v4 **Session** operations for conversational follow-ups: queue message (with interrupt), get queue, cancel queued message, get, get many, and purge.
+- Added v4 **Browser** operations: create, get, get many, stop, and get downloads.
+- Added v4 run options for model selection, provider-native model parameters, session continuation, workspaces and attached files, judge settings, max cost, and per-run browser settings.
+- Added client-side structured output for v4: the JSON Schema is appended to the task and the result is parsed into `parsedResult`, with `structuredOutputError` describing any mismatch.
+
+### Changed
+
+- New **Browser Use** nodes now default to **v4**, which Browser Use recommends for new integrations. Nodes already saved keep their stored API version, and nodes saved before the dropdown existed still fall back to v2.
+- Labelled **V2 Tasks** as legacy in the **API Version** dropdown.
+- Credential testing and the v2 and v3 request paths now also normalise a Base URL saved as `/api/v4`.
+- Moved the shared structured-output templates and the base URL version helper into modules shared by all three API versions, replacing three copies of the same code.
+
+### Compatibility
+
+- Existing v2 and v3 workflows are unaffected; their request bodies and endpoints are unchanged.
+- API v4 is not available on Zero Data Retention projects. Those workflows should stay on the v3 API Version; the node returns an explanatory error if v4 is used.
+
 ## 1.1.2
 
 ### Changed
