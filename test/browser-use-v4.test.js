@@ -388,6 +388,109 @@ describe('v4 structured output emulation', () => {
 		assert.match(calls[0].body.task, /companyName/);
 	});
 
+	it('rejects a task whose composed length exceeds the limit', async () => {
+		// The raw task fits, but the appended schema pushes the instruction over.
+		const { ctx } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'create',
+				task: 'a'.repeat(19_990),
+				startUrl: '',
+				enableStructuredOutput: true,
+				schemaTemplate: 'custom',
+				outputSchema: CUSTOM_SCHEMA,
+				runOptions: {},
+			},
+			routes: {},
+		});
+
+		await assert.rejects(
+			run(ctx),
+			/composed task is \d+ characters, above the 20000 character limit/,
+		);
+	});
+
+	it('accepts a union type such as ["string","null"]', async () => {
+		const { ctx, calls } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'create',
+				task: 'x',
+				startUrl: '',
+				enableStructuredOutput: true,
+				schemaTemplate: 'custom',
+				outputSchema: '{"type":["string","null"]}',
+				runOptions: {},
+			},
+			routes: { 'POST /runs': { id: 'r1', status: 'queued' } },
+		});
+
+		await run(ctx);
+
+		assert.match(calls[0].body.task, /"string"/);
+	});
+
+	it('accepts a result matching any branch of a union type', async () => {
+		const { ctx } = makeCtx({
+			params: waitParams({ outputSchema: '{"type":["string","null"]}' }),
+			routes: {
+				'POST /runs': { id: 'r1', status: 'completed' },
+				'GET /runs/r1': { id: 'r1', status: 'completed', result: 'null' },
+			},
+		});
+
+		const out = await run(ctx);
+
+		assert.equal(out[0][0].json.parsedResult, null);
+		assert.equal(out[0][0].json.structuredOutputError, undefined);
+	});
+
+	it('checks required properties even when the schema omits a type', async () => {
+		const { ctx } = makeCtx({
+			params: waitParams({ outputSchema: '{"required":["title","price"]}' }),
+			routes: {
+				'POST /runs': { id: 'r1', status: 'completed' },
+				'GET /runs/r1': { id: 'r1', status: 'completed', result: '{"title":"A"}' },
+			},
+		});
+
+		const out = await run(ctx);
+
+		assert.match(out[0][0].json.structuredOutputError, /missing required properties: price/);
+	});
+
+	it('reports the expected union types when nothing matches', async () => {
+		const { ctx } = makeCtx({
+			params: waitParams({ outputSchema: '{"type":["string","null"]}' }),
+			routes: {
+				'POST /runs': { id: 'r1', status: 'completed' },
+				'GET /runs/r1': { id: 'r1', status: 'completed', result: '{"a":1}' },
+			},
+		});
+
+		const out = await run(ctx);
+
+		assert.match(out[0][0].json.structuredOutputError, /expects string or null/);
+	});
+
+	it('rejects a genuinely unsupported schema type', async () => {
+		const { ctx } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'create',
+				task: 'x',
+				startUrl: '',
+				enableStructuredOutput: true,
+				schemaTemplate: 'custom',
+				outputSchema: '{"type":["string","banana"]}',
+				runOptions: {},
+			},
+			routes: {},
+		});
+
+		await assert.rejects(run(ctx), /unsupported JSON Schema type: banana/);
+	});
+
 	it('rejects a custom schema that is not valid JSON', async () => {
 		const { ctx } = makeCtx({
 			params: {

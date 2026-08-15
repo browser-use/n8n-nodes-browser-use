@@ -29,6 +29,26 @@ const SUPPORTED_MODELS = [
 	{ name: 'O3', value: 'o3' },
 ] as const;
 
+const API_VERSION_OPTIONS = [
+	{
+		name: 'V2 Tasks (Legacy)',
+		value: 'v2',
+		description: 'Use the legacy API v2 task workflow, which is no longer maintained',
+	},
+	{
+		name: 'V3 Sessions and Browsers',
+		value: 'v3',
+		description:
+			'Use the API v3 session and computer-use browser workflows, which favour speed and cost',
+	},
+	{
+		name: 'V4 Runs, Sessions, and Browsers',
+		value: 'v4',
+		description:
+			'Use the API v4 run workflows, which are the most accurate and are recommended for new integrations',
+	},
+] as const;
+
 function addApiVersionDisplayOptions(
 	properties: INodeProperties[],
 	apiVersion: BrowserUseApiVersion,
@@ -51,7 +71,12 @@ export class BrowserUse implements INodeType {
 		name: 'browserUse',
 		icon: 'file:browseruse.svg',
 		group: ['transform'],
-		version: 1,
+		// Node version 1 defaults to API v2, version 2 defaults to API v4. n8n fills a missing
+		// parameter with its property default, so bumping the default in place would silently
+		// migrate every already-saved node onto v4; a new typeVersion is the only safe way to
+		// change a default. Existing nodes stay on typeVersion 1 forever.
+		version: [1, 2],
+		defaultVersion: 2,
 		description: 'Automate any web task with natural language using AI agents',
 		defaults: {
 			name: 'Browser Use',
@@ -70,25 +95,26 @@ export class BrowserUse implements INodeType {
 				name: 'apiVersion',
 				type: 'options',
 				noDataExpression: true,
-				options: [
-					{
-						name: 'V2 Tasks (Legacy)',
-						value: 'v2',
-						description: 'Use the legacy API v2 task workflow, which is no longer maintained',
+				displayOptions: {
+					show: {
+						'@version': [1],
 					},
-					{
-						name: 'V3 Sessions and Browsers',
-						value: 'v3',
-						description:
-							'Use the API v3 session and computer-use browser workflows, which favour speed and cost',
+				},
+				options: [...API_VERSION_OPTIONS],
+				default: 'v2',
+				description: 'Choose which Browser Use Cloud API to use for this node',
+			},
+			{
+				displayName: 'API Version',
+				name: 'apiVersion',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						'@version': [2],
 					},
-					{
-						name: 'V4 Runs, Sessions, and Browsers',
-						value: 'v4',
-						description:
-							'Use the API v4 run workflows, which are the most accurate and are recommended for new integrations',
-					},
-				],
+				},
+				options: [...API_VERSION_OPTIONS],
 				default: 'v4',
 				description: 'Choose which Browser Use Cloud API to use for this node',
 			},
@@ -584,8 +610,8 @@ export class BrowserUse implements INodeType {
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		// Workflows saved before the v4 dropdown existed have no stored apiVersion, so they
-		// must keep falling back to v2 even though new nodes now default to v4.
+		// Resolved from the typeVersion-gated property pair above: typeVersion 1 nodes default
+		// to v2, typeVersion 2 nodes default to v4.
 		const apiVersion = this.getNodeParameter('apiVersion', 0, 'v2') as string;
 
 		if (apiVersion === 'v4') {

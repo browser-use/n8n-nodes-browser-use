@@ -13,8 +13,9 @@
 
 ### Changed
 
-- New **Browser Use** nodes now default to **v4**, which Browser Use recommends for new integrations. Nodes already saved keep their stored API version, and nodes saved before the dropdown existed still fall back to v2.
+- Newly added **Browser Use** nodes now default to **v4**, which Browser Use recommends for new integrations. The node gained a second `typeVersion` to do this safely: nodes already on the canvas stay at typeVersion 1 and keep defaulting to v2, while nodes added from now on are typeVersion 2 and default to v4. Changing the default in place would have migrated saved nodes silently, because n8n resolves a missing parameter to its property default and omits default-valued parameters when saving.
 - Labelled **V2 Tasks** as legacy in the **API Version** dropdown.
+- Structured output on v4 now accepts JSON Schema union types such as `["string", "null"]`, checks `required` even when the schema omits `type`, and validates the task length after the starting URL and schema are appended rather than before.
 - Credential testing and the v2 and v3 request paths now also normalise a Base URL saved as `/api/v4`.
 - Moved the shared structured-output templates and the base URL version helper into modules shared by all three API versions, replacing three copies of the same code.
 
@@ -25,7 +26,7 @@
 
 ### Compatibility
 
-- Existing v2 and v3 workflows are unaffected; their request bodies and endpoints are unchanged.
+- Existing v2 and v3 workflows are unaffected; their request bodies and endpoints are unchanged, and existing nodes keep their current API version rather than moving to v4.
 - API v4 is not available on Zero Data Retention projects. Those workflows should stay on the v3 API Version; the node returns an explanatory error if v4 is used.
 
 ## 1.1.2

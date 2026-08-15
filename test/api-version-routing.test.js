@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 
+const { NodeHelpers } = require('n8n-workflow');
+
 const { loadNode, makeCtx } = require('./helpers');
 
 const { BrowserUse } = loadNode('BrowserUse.node.js');
@@ -9,17 +11,80 @@ const { BrowserUseV4 } = loadNode('BrowserUseV4.js');
 
 const run = (ctx) => new BrowserUse().execute.call(ctx);
 
+/**
+ * Resolves stored parameters exactly as n8n's Workflow constructor does, so these
+ * assertions reflect real behaviour rather than a stub's. n8n fills a missing
+ * parameter with its property default, which is why the default cannot simply be
+ * flipped in place without migrating every saved node.
+ */
+function resolveApiVersion(storedParameters, typeVersion) {
+	const description = new BrowserUse().description;
+	const node = {
+		name: 'Browser Use',
+		type: 'browserUse',
+		typeVersion,
+		position: [0, 0],
+		parameters: storedParameters,
+	};
+
+	return NodeHelpers.getNodeParameters(
+		description.properties,
+		storedParameters,
+		true,
+		false,
+		node,
+		description,
+	)?.apiVersion;
+}
+
 describe('API version selection', () => {
-	it('defaults new nodes to v4 and offers all three versions', () => {
-		const apiVersion = new BrowserUse().description.properties.find(
+	it('declares both node versions and defaults new nodes to the newer one', () => {
+		const description = new BrowserUse().description;
+
+		assert.deepEqual(description.version, [1, 2]);
+		assert.equal(description.defaultVersion, 2);
+	});
+
+	it('offers all three API versions on both node versions', () => {
+		const apiVersionProperties = new BrowserUse().description.properties.filter(
 			(property) => property.name === 'apiVersion',
 		);
 
-		assert.equal(apiVersion.default, 'v4');
-		assert.deepEqual(
-			apiVersion.options.map((option) => option.value),
-			['v2', 'v3', 'v4'],
+		assert.equal(apiVersionProperties.length, 2);
+
+		for (const property of apiVersionProperties) {
+			assert.deepEqual(
+				property.options.map((option) => option.value),
+				['v2', 'v3', 'v4'],
+			);
+		}
+	});
+
+	it('resolves typeVersion 1 nodes to v2 and typeVersion 2 nodes to v4', () => {
+		// A node saved before the dropdown existed stores nothing at all.
+		assert.equal(resolveApiVersion({}, 1), 'v2');
+		// n8n omits parameters left at their default on save, so a v2 workflow saved
+		// with the dropdown untouched also stores nothing.
+		assert.equal(resolveApiVersion({ resource: 'task', operation: 'execute' }, 1), 'v2');
+		// Explicit choices survive on either node version.
+		assert.equal(resolveApiVersion({ apiVersion: 'v3' }, 1), 'v3');
+		assert.equal(resolveApiVersion({ apiVersion: 'v2' }, 2), 'v2');
+		// Only newly added nodes land on v4.
+		assert.equal(resolveApiVersion({}, 2), 'v4');
+	});
+
+	it('gates the two apiVersion properties by node version', () => {
+		const apiVersionProperties = new BrowserUse().description.properties.filter(
+			(property) => property.name === 'apiVersion',
 		);
+		const byNodeVersion = Object.fromEntries(
+			apiVersionProperties.map((property) => [
+				property.displayOptions.show['@version'][0],
+				property.default,
+			]),
+		);
+
+		assert.deepEqual(byNodeVersion, { 1: 'v2', 2: 'v4' });
 	});
 
 	it('gates every non-apiVersion property behind an apiVersion', () => {
@@ -46,8 +111,8 @@ describe('API version selection', () => {
 		assert.equal(forVersion('v4').length, new BrowserUseV4().description.properties.length);
 	});
 
-	it('falls back to v2 when a workflow has no stored apiVersion', async () => {
-		// Workflows saved before the dropdown existed must not silently move to v4.
+	it('treats an unresolvable apiVersion as v2 at execution time', async () => {
+		// Belt-and-braces guard behind the typeVersion gating asserted above.
 		const { ctx, calls } = makeCtx({
 			params: { resource: 'task', operation: 'get', taskId: 't1' },
 			routes: { 'GET /tasks/t1': { id: 't1' } },

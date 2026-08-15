@@ -17,6 +17,18 @@ const TERMINAL_RUN_STATUSES = ['completed', 'failed', 'cancelled'];
 
 const MAX_ATTACHED_FILES = 20;
 
+const MAX_TASK_LENGTH = 20000;
+
+const JSON_SCHEMA_TYPES = [
+	'object',
+	'array',
+	'string',
+	'number',
+	'integer',
+	'boolean',
+	'null',
+] as const;
+
 const V4_MODELS = [
 	{ name: 'Claude Fable 5', value: 'claude-fable-5' },
 	{ name: 'Claude Opus 4.7', value: 'claude-opus-4.7' },
@@ -314,11 +326,11 @@ export class BrowserUseV4 implements INodeType {
 					},
 				},
 				description:
-					'Whether to ask the agent for JSON matching a schema. API v4 has no server-side output schema, so the schema is appended to the task and the result is parsed by this node.',
+					'Whether to ask the agent for JSON matching a schema. API v4 has no server-side output schema, so the schema is appended to the task and Run and Wait parses the result in this node.',
 			},
 			{
 				displayName:
-					'API v4 does not validate output schemas. The schema is added to the task as an instruction and the run result is parsed into a "parsedResult" field on a best-effort basis; the raw text always stays in "result".',
+					'API v4 does not validate output schemas. The schema is added to the task as an instruction, and Run and Wait parses the result into a "parsedResult" field on a best-effort basis, always keeping the raw text in "result". Create returns before a result exists, so it only adds the instruction; parse its result downstream. Only the root type and top-level required properties are checked.',
 				name: 'structuredOutputNotice',
 				type: 'notice',
 				default: '',
@@ -1069,6 +1081,16 @@ function buildRunRequest(
 		instruction = `${instruction}\n\n${buildStructuredOutputInstruction(schema)}`;
 	}
 
+	// The starting URL and the schema are added after the raw task was checked, so the
+	// composed instruction is what has to fit inside the API's limit.
+	if (instruction.length > MAX_TASK_LENGTH) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`The composed task is ${instruction.length} characters, above the ${MAX_TASK_LENGTH} character limit. The Starting URL and the output schema are added to the task text, so shorten the task or the schema.`,
+			{ level: 'warning' },
+		);
+	}
+
 	// RunCreateRequest rejects unknown properties, so only documented v4 fields go on the body.
 	const body: any = { task: instruction };
 
@@ -1168,10 +1190,10 @@ function buildTaskInstruction(this: IExecuteFunctions, task: string, startUrl: s
 		});
 	}
 
-	if (trimmedTask.length > 20000) {
+	if (trimmedTask.length > MAX_TASK_LENGTH) {
 		throw new NodeOperationError(
 			this.getNode(),
-			'The "Task" parameter exceeds the maximum length of 20000 characters.',
+			`The "Task" parameter exceeds the maximum length of ${MAX_TASK_LENGTH} characters.`,
 			{ level: 'warning' },
 		);
 	}
@@ -1591,16 +1613,33 @@ function validateJsonSchema(this: IExecuteFunctions, schema: any, displayName: s
 		});
 	}
 
-	if (
-		schema.type &&
-		!['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'].includes(schema.type)
-	) {
+	if (schema.type === undefined) {
+		return;
+	}
+
+	// JSON Schema allows a union of types, such as ["string", "null"].
+	const declaredTypes = declaredSchemaTypes(schema);
+	const unsupported = declaredTypes.filter(
+		(entry) => !(JSON_SCHEMA_TYPES as readonly string[]).includes(entry),
+	);
+
+	if (unsupported.length > 0) {
 		throw new NodeOperationError(
 			this.getNode(),
-			`The "${displayName}" has an unsupported JSON Schema type: ${schema.type}`,
+			`The "${displayName}" has an unsupported JSON Schema type: ${unsupported.join(', ')}`,
 			{ level: 'warning' },
 		);
 	}
+}
+
+function declaredSchemaTypes(schema: any): string[] {
+	if (schema.type === undefined) {
+		return [];
+	}
+
+	return (Array.isArray(schema.type) ? schema.type : [schema.type]).map((entry: unknown) =>
+		String(entry),
+	);
 }
 
 function buildStructuredOutputInstruction(schema: any): string {
@@ -1676,16 +1715,23 @@ function extractJson(raw: string): any {
 	return undefined;
 }
 
+/**
+ * Shallow check only: the root type and the top-level required properties. Nested
+ * constraints are not validated, which the field description states.
+ */
 function describeSchemaMismatch(value: any, schema: any): string | undefined {
-	const expected = schema.type;
+	const declaredTypes = declaredSchemaTypes(schema);
 
-	if (expected && !matchesJsonType(value, expected)) {
-		return `The run returned ${describeJsonType(value)} where the schema expects ${expected}. API v4 does not validate output schemas.`;
+	if (declaredTypes.length > 0 && !declaredTypes.some((entry) => matchesJsonType(value, entry))) {
+		return `The run returned ${describeJsonType(value)} where the schema expects ${declaredTypes.join(' or ')}. API v4 does not validate output schemas.`;
 	}
 
-	if (expected === 'object' && Array.isArray(schema.required)) {
+	// `required` applies to objects whether or not the schema also declares its type.
+	const isPlainObject = value !== null && typeof value === 'object' && !Array.isArray(value);
+
+	if (Array.isArray(schema.required) && isPlainObject) {
 		const missing = schema.required.filter(
-			(key: string) => !Object.prototype.hasOwnProperty.call(value ?? {}, key),
+			(key: string) => !Object.prototype.hasOwnProperty.call(value, key),
 		);
 
 		if (missing.length > 0) {
