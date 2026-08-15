@@ -29,6 +29,7 @@
 		"build": "n8n-node build && gulp build:icons",
 		"dev": "n8n-node dev",
 		"format": "prettier nodes credentials --write",
+		"format:check": "prettier nodes credentials --check",
 		"lint": "n8n-node lint",
 		"lintfix": "n8n-node lint --fix",
 		"prepublishOnly": "pnpm build && pnpm lint"
