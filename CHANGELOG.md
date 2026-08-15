@@ -18,6 +18,10 @@
 - Credential testing and the v2 and v3 request paths now also normalise a Base URL saved as `/api/v4`.
 - Moved the shared structured-output templates and the base URL version helper into modules shared by all three API versions, replacing three copies of the same code.
 
+- Raised the minimum Node version from 20.19 to 22.22, matching n8n's own requirement. The development toolchain cannot install on Node 20 at all: `isolated-vm`, a transitive dependency of `n8n-workflow`, fails to compile against Node 20's V8 headers. Node 20 is also past end of life.
+- Added CI running formatting, lint, and build on every pull request and push to main, across Node 22.22 and 24. The repository previously had no CI; lint and build only ran during a tagged publish.
+- Hardened the publish workflow: a `v*` tag whose version does not match `package.json` now fails before publishing, formatting is checked alongside lint and build, and the pnpm store is cached.
+
 ### Compatibility
 
 - Existing v2 and v3 workflows are unaffected; their request bodies and endpoints are unchanged.

@@ -22,9 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Floor from package.json engines, plus the current LTS and the version
-        # the publish workflow releases from.
-        node-version: ['20.19', '22', '24']
+        # Floor from package.json engines, plus the version the publish
+        # workflow releases from.
+        node-version: ['22.22', '24']
 
     steps:
       - uses: actions/checkout@v4
