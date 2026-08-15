@@ -473,6 +473,48 @@ describe('v4 structured output emulation', () => {
 		assert.match(out[0][0].json.structuredOutputError, /expects string or null/);
 	});
 
+	it('rejects a non-string schema type rather than coercing it', async () => {
+		// String(null) is "null", which is itself a valid type name, so a literal null
+		// must be rejected before coercion rather than passing as the string "null".
+		for (const badType of ['null', '["string", null]', '123', '{}']) {
+			const { ctx } = makeCtx({
+				params: {
+					resource: 'run',
+					operation: 'create',
+					task: 'x',
+					startUrl: '',
+					enableStructuredOutput: true,
+					schemaTemplate: 'custom',
+					outputSchema: `{"type": ${badType}}`,
+					runOptions: {},
+				},
+				routes: {},
+			});
+
+			await assert.rejects(run(ctx), /unsupported JSON Schema type/, `for type ${badType}`);
+		}
+	});
+
+	it('still accepts the string "null" as a type', async () => {
+		const { ctx, calls } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'create',
+				task: 'x',
+				startUrl: '',
+				enableStructuredOutput: true,
+				schemaTemplate: 'custom',
+				outputSchema: '{"type":"null"}',
+				runOptions: {},
+			},
+			routes: { 'POST /runs': { id: 'r1', status: 'queued' } },
+		});
+
+		await run(ctx);
+
+		assert.match(calls[0].body.task, /"null"/);
+	});
+
 	it('rejects a genuinely unsupported schema type', async () => {
 		const { ctx } = makeCtx({
 			params: {
@@ -488,7 +530,7 @@ describe('v4 structured output emulation', () => {
 			routes: {},
 		});
 
-		await assert.rejects(run(ctx), /unsupported JSON Schema type: banana/);
+		await assert.rejects(run(ctx), /unsupported JSON Schema type: "banana"/);
 	});
 
 	it('rejects a custom schema that is not valid JSON', async () => {

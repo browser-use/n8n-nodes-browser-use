@@ -1618,28 +1618,30 @@ function validateJsonSchema(this: IExecuteFunctions, schema: any, displayName: s
 	}
 
 	// JSON Schema allows a union of types, such as ["string", "null"].
-	const declaredTypes = declaredSchemaTypes(schema);
-	const unsupported = declaredTypes.filter(
-		(entry) => !(JSON_SCHEMA_TYPES as readonly string[]).includes(entry),
+	const unsupported = declaredSchemaTypes(schema).filter(
+		(entry) =>
+			typeof entry !== 'string' || !(JSON_SCHEMA_TYPES as readonly string[]).includes(entry),
 	);
 
 	if (unsupported.length > 0) {
+		// JSON-encoded so a literal null reads differently from the string "null".
+		const rendered = unsupported.map((entry) => JSON.stringify(entry) ?? String(entry)).join(', ');
+
 		throw new NodeOperationError(
 			this.getNode(),
-			`The "${displayName}" has an unsupported JSON Schema type: ${unsupported.join(', ')}`,
+			`The "${displayName}" has an unsupported JSON Schema type: ${rendered}`,
 			{ level: 'warning' },
 		);
 	}
 }
 
-function declaredSchemaTypes(schema: any): string[] {
+/** Returns the declared types verbatim; callers decide what to do with non-string entries. */
+function declaredSchemaTypes(schema: any): unknown[] {
 	if (schema.type === undefined) {
 		return [];
 	}
 
-	return (Array.isArray(schema.type) ? schema.type : [schema.type]).map((entry: unknown) =>
-		String(entry),
-	);
+	return Array.isArray(schema.type) ? schema.type : [schema.type];
 }
 
 function buildStructuredOutputInstruction(schema: any): string {
@@ -1720,7 +1722,10 @@ function extractJson(raw: string): any {
  * constraints are not validated, which the field description states.
  */
 function describeSchemaMismatch(value: any, schema: any): string | undefined {
-	const declaredTypes = declaredSchemaTypes(schema);
+	// Non-string entries are rejected before dispatch, so only strings can reach here.
+	const declaredTypes = declaredSchemaTypes(schema).filter(
+		(entry): entry is string => typeof entry === 'string',
+	);
 
 	if (declaredTypes.length > 0 && !declaredTypes.some((entry) => matchesJsonType(value, entry))) {
 		return `The run returned ${describeJsonType(value)} where the schema expects ${declaredTypes.join(' or ')}. API v4 does not validate output schemas.`;
