@@ -19,6 +19,8 @@ const MAX_ATTACHED_FILES = 20;
 
 const MAX_TASK_LENGTH = 20000;
 
+const POLL_INTERVAL_MS = 2000;
+
 const JSON_SCHEMA_TYPES = [
 	'object',
 	'array',
@@ -1025,13 +1027,20 @@ async function runAndWait(this: IExecuteFunctions, itemIndex: number): Promise<a
 		);
 	}
 
-	const startTime = Date.now();
+	const deadline = Date.now() + waitTimeout * 1000;
 	let status = created.status as string;
 
 	// Poll the status endpoint rather than the full run: it is a cheap indexed lookup
-	// that never carries the task or result text.
-	while (!TERMINAL_RUN_STATUSES.includes(status) && Date.now() - startTime < waitTimeout * 1000) {
-		await sleep(2000);
+	// that never carries the task or result text. The wait is capped at the remaining
+	// budget so the last poll lands on the deadline rather than a full interval past it.
+	while (!TERMINAL_RUN_STATUSES.includes(status)) {
+		const remaining = deadline - Date.now();
+
+		if (remaining <= 0) {
+			break;
+		}
+
+		await sleep(Math.min(POLL_INTERVAL_MS, remaining));
 		const statusResponse = await makeApiCall.call(this, 'GET', `/runs/${created.id}/status`);
 		status = statusResponse.status ?? status;
 	}

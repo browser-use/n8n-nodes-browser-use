@@ -243,10 +243,47 @@ describe('v4 run and wait', () => {
 			},
 		});
 
+		const startedAt = Date.now();
 		const out = await run(ctx);
+		const elapsed = Date.now() - startedAt;
 
 		assert.match(out[0][0].json.warning, /did not reach a terminal status within 10 seconds/);
 		assert.equal(out[0][0].json.status, 'running');
+		// The poll wait is capped at the remaining budget, so the loop must not run a
+		// full extra interval past the deadline.
+		assert.ok(elapsed < 11_500, `polled for ${elapsed}ms, past the 10s budget`);
+	});
+
+	it('caps the final wait at the remaining budget', async () => {
+		let statusHits = 0;
+		const { ctx } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'runAndWait',
+				task: 'x',
+				startUrl: '',
+				// 11s budget over a 2s interval: five full waits then a 1s remainder,
+				// rather than a sixth full interval overshooting to 12s.
+				waitTimeout: 11,
+				enableStructuredOutput: false,
+				runOptions: {},
+			},
+			routes: {
+				'POST /runs': { id: 'r1', status: 'running' },
+				'GET /runs/r1/status': () => {
+					statusHits += 1;
+					return { status: 'running' };
+				},
+				'GET /runs/r1': { id: 'r1', status: 'running', result: null },
+			},
+		});
+
+		const startedAt = Date.now();
+		await run(ctx);
+		const elapsed = Date.now() - startedAt;
+
+		assert.equal(statusHits, 6);
+		assert.ok(elapsed < 12_500, `polled for ${elapsed}ms, past the 11s budget`);
 	});
 
 	it('rejects an out-of-range wait timeout', async () => {
