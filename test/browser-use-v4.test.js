@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('node:test');
 
-const { loadNode, makeCtx, httpError } = require('./helpers');
+const { loadNode, makeCtx, httpError, withVirtualClock } = require('./helpers');
 
 const { BrowserUseV4 } = loadNode('BrowserUseV4.js');
 
@@ -193,7 +193,7 @@ describe('v4 run and wait', () => {
 			},
 		});
 
-		const out = await run(ctx);
+		const out = await withVirtualClock(() => run(ctx));
 
 		assert.equal(statusHits, 2);
 		assert.equal(out[0][0].json.status, 'completed');
@@ -243,15 +243,15 @@ describe('v4 run and wait', () => {
 			},
 		});
 
-		const startedAt = Date.now();
-		const out = await run(ctx);
-		const elapsed = Date.now() - startedAt;
+		const { out, sleeps } = await withVirtualClock(async (requestedSleeps) => ({
+			out: await run(ctx),
+			sleeps: requestedSleeps,
+		}));
 
 		assert.match(out[0][0].json.warning, /did not reach a terminal status within 10 seconds/);
 		assert.equal(out[0][0].json.status, 'running');
-		// The poll wait is capped at the remaining budget, so the loop must not run a
-		// full extra interval past the deadline.
-		assert.ok(elapsed < 11_500, `polled for ${elapsed}ms, past the 10s budget`);
+		// A 10s budget is exactly five 2s waits, with nothing left over.
+		assert.deepEqual(sleeps, [2000, 2000, 2000, 2000, 2000]);
 	});
 
 	it('caps the final wait at the remaining budget', async () => {
@@ -262,8 +262,6 @@ describe('v4 run and wait', () => {
 				operation: 'runAndWait',
 				task: 'x',
 				startUrl: '',
-				// 11s budget over a 2s interval: five full waits then a 1s remainder,
-				// rather than a sixth full interval overshooting to 12s.
 				waitTimeout: 11,
 				enableStructuredOutput: false,
 				runOptions: {},
@@ -278,12 +276,66 @@ describe('v4 run and wait', () => {
 			},
 		});
 
-		const startedAt = Date.now();
-		await run(ctx);
-		const elapsed = Date.now() - startedAt;
+		const sleeps = await withVirtualClock(async (requestedSleeps) => {
+			await run(ctx);
+			return requestedSleeps;
+		});
 
+		// An 11s budget is five full waits plus a 1s remainder. Without the cap the
+		// sixth wait would be another 2000, overshooting the budget to 12s.
+		assert.deepEqual(sleeps, [2000, 2000, 2000, 2000, 2000, 1000]);
 		assert.equal(statusHits, 6);
-		assert.ok(elapsed < 12_500, `polled for ${elapsed}ms, past the 11s budget`);
+		assert.equal(
+			sleeps.reduce((total, ms) => total + ms, 0),
+			11_000,
+		);
+	});
+
+	it('rejects a wait timeout that is not a number', async () => {
+		// An expression can yield a non-number; NaN would otherwise pass the range
+		// check and leave the poll loop with an unreachable deadline.
+		for (const badTimeout of ['not-a-number', NaN, {}]) {
+			const { ctx } = makeCtx({
+				params: {
+					resource: 'run',
+					operation: 'runAndWait',
+					task: 'x',
+					startUrl: '',
+					waitTimeout: badTimeout,
+					enableStructuredOutput: false,
+					runOptions: {},
+				},
+				routes: {},
+			});
+
+			await assert.rejects(
+				run(ctx),
+				/must be a number between 10 and 14400 seconds/,
+				`for ${String(badTimeout)}`,
+			);
+		}
+	});
+
+	it('accepts a numeric string wait timeout from an expression', async () => {
+		const { ctx } = makeCtx({
+			params: {
+				resource: 'run',
+				operation: 'runAndWait',
+				task: 'x',
+				startUrl: '',
+				waitTimeout: '60',
+				enableStructuredOutput: false,
+				runOptions: {},
+			},
+			routes: {
+				'POST /runs': { id: 'r1', status: 'completed' },
+				'GET /runs/r1': { id: 'r1', status: 'completed', result: 'done' },
+			},
+		});
+
+		const out = await run(ctx);
+
+		assert.equal(out[0][0].json.status, 'completed');
 	});
 
 	it('rejects an out-of-range wait timeout', async () => {

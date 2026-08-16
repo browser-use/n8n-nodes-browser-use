@@ -1006,12 +1006,15 @@ async function createRun(this: IExecuteFunctions, itemIndex: number): Promise<an
 }
 
 async function runAndWait(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const waitTimeout = this.getNodeParameter('waitTimeout', itemIndex, 900) as number;
+	// An expression can yield a non-number here, and NaN would slip past a bare range
+	// check because every comparison against it is false, leaving the poll loop with a
+	// NaN deadline it can never reach.
+	const waitTimeout = Number(this.getNodeParameter('waitTimeout', itemIndex, 900));
 
-	if (waitTimeout < 10 || waitTimeout > 14400) {
+	if (!Number.isFinite(waitTimeout) || waitTimeout < 10 || waitTimeout > 14400) {
 		throw new NodeOperationError(
 			this.getNode(),
-			'The "Wait Timeout" parameter must be between 10 and 14400 seconds.',
+			'The "Wait Timeout" parameter must be a number between 10 and 14400 seconds.',
 			{ level: 'warning' },
 		);
 	}

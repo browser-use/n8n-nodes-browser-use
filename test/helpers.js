@@ -71,4 +71,55 @@ function loadNode(file) {
 	return require(path.join(DIST, file));
 }
 
-module.exports = { loadNode, makeCtx, httpError };
+/**
+ * Runs `fn` with `sleep` and `Date.now` replaced by a virtual clock, so polling loops
+ * resolve instantly and deterministically. The node calls `sleep` as a property lookup
+ * on the n8n-workflow module, so replacing the property is enough to intercept it.
+ *
+ * `fn` receives the list of requested sleep durations, which is what the capped-wait
+ * behaviour actually asserts: a bounded final wait shows up as a short last entry.
+ */
+const MAX_VIRTUAL_SLEEPS = 1000;
+
+async function withVirtualClock(fn) {
+	const n8nWorkflow = require('n8n-workflow');
+	const sleepDescriptor = Object.getOwnPropertyDescriptor(n8nWorkflow, 'sleep');
+	const realSleep = n8nWorkflow.sleep;
+	const realNow = Date.now;
+	const requestedSleeps = [];
+	let now = realNow.call(Date);
+
+	Date.now = () => now;
+	// The export is a getter with no setter, so plain assignment silently no-ops and
+	// leaves the real sleep running against a frozen clock, which never terminates.
+	Object.defineProperty(n8nWorkflow, 'sleep', {
+		configurable: true,
+		value: async (ms) => {
+			requestedSleeps.push(ms);
+
+			// Turns a runaway loop into a failure rather than a hung suite.
+			if (requestedSleeps.length > MAX_VIRTUAL_SLEEPS) {
+				throw new Error(
+					`sleep called more than ${MAX_VIRTUAL_SLEEPS} times; loop does not terminate`,
+				);
+			}
+
+			// Advancing the virtual clock is what lets the loop reach its deadline.
+			now += Number.isFinite(ms) ? ms : 0;
+		},
+	});
+
+	if (n8nWorkflow.sleep === realSleep) {
+		Date.now = realNow;
+		throw new Error('could not replace n8n-workflow sleep; the virtual clock would hang');
+	}
+
+	try {
+		return await fn(requestedSleeps);
+	} finally {
+		Date.now = realNow;
+		Object.defineProperty(n8nWorkflow, 'sleep', sleepDescriptor);
+	}
+}
+
+module.exports = { loadNode, makeCtx, httpError, withVirtualClock };

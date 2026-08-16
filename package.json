@@ -32,7 +32,7 @@
 		"format:check": "prettier nodes credentials test --check",
 		"lint": "n8n-node lint",
 		"lintfix": "n8n-node lint --fix",
-		"test": "node --test \"test/*.test.js\"",
+		"test": "node --test --test-timeout 30000 \"test/*.test.js\"",
 		"prepublishOnly": "pnpm build && pnpm lint && pnpm test"
 	},
 	"files": [
