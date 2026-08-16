@@ -1,7 +1,7 @@
 {
 	"name": "n8n-nodes-browser-use-cloud",
-	"version": "1.1.2",
-	"description": "n8n node for Browser Use Cloud API v3 - agent sessions and cloud browsers",
+	"version": "1.2.0",
+	"description": "n8n node for Browser Use Cloud API v4, v3, and v2 - agent runs, sessions, and cloud browsers",
 	"keywords": [
 		"n8n-community-node-package",
 		"browser-automation",
@@ -20,7 +20,7 @@
 		"url": "https://github.com/browser-use/n8n-nodes-browser-use.git"
 	},
 	"engines": {
-		"node": ">=20.19",
+		"node": ">=22.22",
 		"pnpm": ">=9.1"
 	},
 	"packageManager": "pnpm@9.1.0",
@@ -28,10 +28,12 @@
 	"scripts": {
 		"build": "n8n-node build && gulp build:icons",
 		"dev": "n8n-node dev",
-		"format": "prettier nodes credentials --write",
+		"format": "prettier nodes credentials test --write",
+		"format:check": "prettier nodes credentials test --check",
 		"lint": "n8n-node lint",
 		"lintfix": "n8n-node lint --fix",
-		"prepublishOnly": "pnpm build && pnpm lint"
+		"test": "node --test --test-timeout 30000 \"test/*.test.js\"",
+		"prepublishOnly": "pnpm build && pnpm lint && pnpm test"
 	},
 	"files": [
 		"dist",
