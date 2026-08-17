@@ -18,8 +18,9 @@ const packageJson = require(path.join(ROOT, 'package.json'));
 
 /**
  * The n8n community node review rejects a package over any of these, so a regression here
- * costs a release rather than a test run. They are asserted against the compiled `dist/`,
- * which is what actually ships.
+ * costs a release rather than a test run. Node metadata is read from the compiled `dist/`,
+ * because that is what ships and what n8n loads; the registration checks compare the source
+ * tree against `package.json`, which is the pairing the review actually inspects.
  */
 
 // Same character classes the review's no-emoji-in-options rule matches on.
@@ -103,14 +104,23 @@ describe('community node review contract', () => {
 	});
 
 	it('registers every node source file it ships', () => {
-		// n8n discovers nodes from package.json alone, but the review flags any unregistered
-		// `*.node.ts`. The v3 and v4 modules stay plain property/execute exports for that reason.
+		// The review flags any `*.node.ts` missing from `n8n.nodes`. The v3 and v4 modules stay
+		// plain property/execute exports so they never need registering.
 		const sourceFiles = fs
 			.readdirSync(path.join(ROOT, 'nodes', 'BrowserUse'))
 			.filter((file) => file.endsWith('.node.ts'))
 			.map((file) => `dist/nodes/BrowserUse/${file.replace(/\.ts$/, '.js')}`);
 
 		assert.deepEqual(sourceFiles.sort(), [...packageJson.n8n.nodes].sort());
+	});
+
+	it('builds every node and credential it registers', () => {
+		// The check above maps source names to their expected dist paths, which says nothing
+		// about what the build actually emitted. n8n loads these paths and nothing else, so a
+		// registration the build never produces is a node that silently fails to load.
+		for (const entry of [...packageJson.n8n.nodes, ...packageJson.n8n.credentials]) {
+			assert.ok(fs.existsSync(path.join(ROOT, entry)), `${entry} is registered but not built`);
+		}
 	});
 });
 
