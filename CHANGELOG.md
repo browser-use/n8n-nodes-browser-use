@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.1
+
+Resolves every issue raised in the n8n community node review of 1.2.0. No node behaviour, request body, or endpoint changes.
+
+### Added
+
+- The **Browser Use** node now declares `usableAsTool`, so it can be attached to an AI Agent as a tool.
+- The **Browser Use API** credential now has an icon; it previously had none.
+- Added a dark-theme icon variant for both the node and the credential. The logo is a solid monochrome glyph, so the previous single black SVG was invisible on n8n's dark theme.
+- The node now shows the current operation and resource as its subtitle on the canvas.
+- Added a test suite that asserts the review gate's requirements against the compiled `dist/`, so a later refactor cannot silently reintroduce them.
+
+### Changed
+
+- Errors escaping a node are now always a `NodeOperationError` or a `NodeApiError`, so n8n can render the status code and response body. Errors the node already raised with a tailored message pass through unchanged rather than being wrapped a second time.
+- `inputs` and `outputs` now use `NodeConnectionTypes.Main` instead of the `'main'` string literal.
+- The internal v3 and v4 implementations no longer declare node classes of their own. They now export their property list and execute function directly, which `BrowserUse.node.ts` merges in as before. n8n requires a node class to live in a `*.node.ts` file, and requires every such file to be registered in `n8n.nodes`; registering these two would have put three overlapping **Browser Use** nodes in the palette, so the node class they never used was removed instead. `BrowserUse.node.ts` remains the only node in the package.
+- Removed the emoji from the structured-output template hint, and sorted the v3 and v4 **Resource** options alphabetically.
+- Replaced the legacy `.eslintrc.js` with the official `@n8n/node-cli` flat config on ESLint 9. The old setup silently skipped every `@n8n/community-nodes` rule, which is why the issues above reached review; `pnpm lint` now fails on them locally and in CI.
+
 ## 1.2.0
 
 ### Added

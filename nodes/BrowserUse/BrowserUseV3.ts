@@ -1,9 +1,7 @@
-/* eslint-disable n8n-nodes-base/node-filename-against-convention -- Internal v3 implementation registered through BrowserUse.node.ts. */
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
+	INodeProperties,
 	JsonObject,
 	NodeApiError,
 	NodeOperationError,
@@ -11,6 +9,7 @@ import {
 } from 'n8n-workflow';
 
 import { getVersionedBaseUrl } from './ApiVersion';
+import { toNodeError } from './NodeErrors';
 import { getSchemaTemplate } from './SchemaTemplates';
 
 const TERMINAL_SESSION_STATUSES = ['stopped', 'timed_out', 'error'];
@@ -24,678 +23,664 @@ const V3_MODELS = [
 	{ name: 'Browser Use Ultra', value: 'bu-ultra' },
 ] as const;
 
-export class BrowserUseV3 implements INodeType {
-	description: INodeTypeDescription = {
-		displayName: 'Browser Use v3',
-		name: 'browserUseV3',
-		icon: 'file:browseruse.svg',
-		group: ['transform'],
-		version: 1,
-		description: 'Automate browsers with Browser Use Cloud API v3',
-		defaults: {
-			name: 'Browser Use v3',
-		},
-		inputs: ['main'],
-		outputs: ['main'],
-		credentials: [
+/**
+ * The v3 half of the Browser Use node. `BrowserUse.node.ts` merges these properties into its own
+ * description and delegates to `executeBrowserUseV3`, so this module deliberately declares no node
+ * class: `browserUse` is the only node the package registers, and n8n discovers it from the
+ * `n8n.nodes` entry in package.json.
+ */
+export const browserUseV3Properties: INodeProperties[] = [
+	{
+		displayName: 'Resource',
+		name: 'resource',
+		type: 'options',
+		noDataExpression: true,
+		options: [
 			{
-				name: 'browserUseApi',
-				required: true,
+				name: 'Browser',
+				value: 'browser',
+				description: 'Create and manage standalone cloud browser sessions',
+			},
+			{
+				name: 'Session',
+				value: 'session',
+				description: 'Run and manage v3 agent sessions',
 			},
 		],
-		properties: [
+		default: 'session',
+	},
+	{
+		displayName: 'Operation',
+		name: 'operation',
+		type: 'options',
+		noDataExpression: true,
+		displayOptions: {
+			show: {
+				resource: ['session'],
+			},
+		},
+		options: [
 			{
-				displayName: 'Resource',
-				name: 'resource',
-				type: 'options',
-				noDataExpression: true,
-				options: [
-					{
-						name: 'Session',
-						value: 'session',
-						description: 'Run and manage v3 agent sessions',
-					},
-					{
-						name: 'Browser',
-						value: 'browser',
-						description: 'Create and manage standalone cloud browser sessions',
-					},
-				],
-				default: 'session',
+				name: 'Create',
+				value: 'create',
+				description: 'Create an idle session or dispatch a task',
+				action: 'Create a session',
 			},
 			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['session'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create an idle session or dispatch a task',
-						action: 'Create a session',
-					},
-					{
-						name: 'Delete',
-						value: 'delete',
-						description: 'Soft-delete a session',
-						action: 'Delete a session',
-					},
-					{
-						name: 'Get',
-						value: 'get',
-						description: 'Get a session',
-						action: 'Get a session',
-					},
-					{
-						name: 'Get Many',
-						value: 'getMany',
-						description: 'List sessions',
-						action: 'Get many sessions',
-					},
-					{
-						name: 'Get Messages',
-						value: 'getMessages',
-						description: 'List messages for a session',
-						action: 'Get session messages',
-					},
-					{
-						name: 'Run and Wait',
-						value: 'runAndWait',
-						description: 'Create or reuse a session, run a task, and poll until completion',
-						action: 'Run a task and wait',
-					},
-					{
-						name: 'Stop',
-						value: 'stop',
-						description: 'Stop a session or the current task',
-						action: 'Stop a session',
-					},
-				],
-				default: 'runAndWait',
+				name: 'Delete',
+				value: 'delete',
+				description: 'Soft-delete a session',
+				action: 'Delete a session',
 			},
 			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['browser'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a standalone browser session with live and CDP URLs',
-						action: 'Create a browser session',
-					},
-					{
-						name: 'Get',
-						value: 'get',
-						description: 'Get browser session details',
-						action: 'Get a browser session',
-					},
-					{
-						name: 'Get Many',
-						value: 'getMany',
-						description: 'List browser sessions',
-						action: 'Get many browser sessions',
-					},
-					{
-						name: 'Stop',
-						value: 'stop',
-						description: 'Stop a browser session',
-						action: 'Stop a browser session',
-					},
-				],
-				default: 'create',
+				name: 'Get',
+				value: 'get',
+				description: 'Get a session',
+				action: 'Get a session',
 			},
 			{
-				displayName: 'Task',
-				name: 'task',
-				type: 'string',
+				name: 'Get Many',
+				value: 'getMany',
+				description: 'List sessions',
+				action: 'Get many sessions',
+			},
+			{
+				name: 'Get Messages',
+				value: 'getMessages',
+				description: 'List messages for a session',
+				action: 'Get session messages',
+			},
+			{
+				name: 'Run and Wait',
+				value: 'runAndWait',
+				description: 'Create or reuse a session, run a task, and poll until completion',
+				action: 'Run a task and wait',
+			},
+			{
+				name: 'Stop',
+				value: 'stop',
+				description: 'Stop a session or the current task',
+				action: 'Stop a session',
+			},
+		],
+		default: 'runAndWait',
+	},
+	{
+		displayName: 'Operation',
+		name: 'operation',
+		type: 'options',
+		noDataExpression: true,
+		displayOptions: {
+			show: {
+				resource: ['browser'],
+			},
+		},
+		options: [
+			{
+				name: 'Create',
+				value: 'create',
+				description: 'Create a standalone browser session with live and CDP URLs',
+				action: 'Create a browser session',
+			},
+			{
+				name: 'Get',
+				value: 'get',
+				description: 'Get browser session details',
+				action: 'Get a browser session',
+			},
+			{
+				name: 'Get Many',
+				value: 'getMany',
+				description: 'List browser sessions',
+				action: 'Get many browser sessions',
+			},
+			{
+				name: 'Stop',
+				value: 'stop',
+				description: 'Stop a browser session',
+				action: 'Stop a browser session',
+			},
+		],
+		default: 'create',
+	},
+	{
+		displayName: 'Task',
+		name: 'task',
+		type: 'string',
+		typeOptions: {
+			rows: 4,
+		},
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+			},
+		},
+		placeholder: 'e.g. Find the top 3 trending repositories on GitHub today',
+		description:
+			'Natural-language task for the agent. Required for Run and Wait. Leave empty on Create to create an idle session.',
+	},
+	{
+		displayName: 'Starting URL',
+		name: 'startUrl',
+		type: 'string',
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+			},
+		},
+		placeholder: 'e.g. https://example.com',
+		description: 'Optional URL to include at the start of the agent instruction',
+	},
+	{
+		displayName: 'Session ID',
+		name: 'sessionId',
+		type: 'string',
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['get', 'stop', 'delete', 'getMessages'],
+			},
+		},
+		description: 'The Browser Use v3 session ID',
+		required: true,
+	},
+	{
+		displayName: 'Wait Timeout',
+		name: 'waitTimeout',
+		type: 'number',
+		default: 900,
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['runAndWait'],
+			},
+		},
+		description: 'Maximum time in seconds to poll for task completion',
+		typeOptions: {
+			minValue: 10,
+			maxValue: 14400,
+		},
+	},
+	{
+		displayName: 'Extract Structured Data',
+		name: 'enableStructuredOutput',
+		type: 'boolean',
+		default: false,
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+			},
+		},
+		description: 'Whether to request a final output matching a JSON Schema',
+	},
+	{
+		displayName: 'Data Template',
+		name: 'schemaTemplate',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+				enableStructuredOutput: [true],
+			},
+		},
+		options: [
+			{
+				name: 'Article/Blog Content',
+				value: 'article',
+			},
+			{
+				name: 'Company Information',
+				value: 'company',
+			},
+			{
+				name: 'Contact Information',
+				value: 'contact',
+			},
+			{
+				name: 'Custom JSON Schema',
+				value: 'custom',
+			},
+			{
+				name: 'Product Information',
+				value: 'product',
+			},
+		],
+		default: 'custom',
+		description: 'Choose a pre-built schema or provide a custom one',
+	},
+	{
+		displayName: 'Output Schema',
+		name: 'outputSchema',
+		type: 'json',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+				enableStructuredOutput: [true],
+				schemaTemplate: ['custom'],
+			},
+		},
+		default:
+			'{\n  "type": "object",\n  "properties": {\n    "title": {"type": "string"},\n    "description": {"type": "string"},\n    "items": {"type": "array", "items": {"type": "object"}}\n  },\n  "required": ["title"]\n}',
+		description: 'JSON Schema that the final output must conform to',
+	},
+	{
+		displayName: 'Session Options',
+		name: 'sessionOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['create', 'runAndWait'],
+			},
+		},
+		options: [
+			{
+				displayName: 'AgentMail',
+				name: 'agentmail',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to provision a temporary email inbox for the session',
+			},
+			{
+				displayName: 'Cache Script',
+				name: 'cacheScript',
+				type: 'options',
+				options: [
+					{
+						name: 'Auto',
+						value: 'auto',
+					},
+					{
+						name: 'Disabled',
+						value: 'disabled',
+					},
+					{
+						name: 'Enabled',
+						value: 'enabled',
+					},
+				],
+				default: 'auto',
+				description: 'Whether to enable deterministic script caching',
+			},
+			{
+				displayName: 'Disable Proxy',
+				name: 'disableProxy',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to disable the Browser Use proxy for this session',
+			},
+			{
+				displayName: 'Enable Recording',
+				name: 'enableRecording',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to record the browser session',
+			},
+			{
+				displayName: 'Enable Scheduled Tasks',
+				name: 'enableScheduledTasks',
+				type: 'boolean',
+				default: false,
+				description: 'Whether the agent can create scheduled tasks',
+			},
+			{
+				displayName: 'Keep Alive',
+				name: 'keepAlive',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to keep the session idle after task completion for follow-up tasks',
+			},
+			{
+				displayName: 'Max Cost USD',
+				name: 'maxCostUsd',
+				type: 'number',
+				default: 0,
+				description: 'Maximum total cost in USD allowed for this session',
 				typeOptions: {
-					rows: 4,
+					minValue: 0,
 				},
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-					},
-				},
-				placeholder: 'e.g. Find the top 3 trending repositories on GitHub today',
-				description:
-					'Natural-language task for the agent. Required for Run and Wait. Leave empty on Create to create an idle session.',
 			},
 			{
-				displayName: 'Starting URL',
-				name: 'startUrl',
+				displayName: 'Model',
+				name: 'model',
+				type: 'options',
+				options: [...V3_MODELS],
+				default: 'claude-sonnet-4.6',
+				description: 'The model to use for the task',
+			},
+			{
+				displayName: 'Profile ID',
+				name: 'profileId',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-					},
-				},
-				placeholder: 'e.g. https://example.com',
-				description: 'Optional URL to include at the start of the agent instruction',
+				description: 'Browser profile ID to load into the session',
+			},
+			{
+				displayName: 'Proxy Country Code',
+				name: 'proxyCountryCode',
+				type: 'string',
+				default: 'us',
+				description:
+					'Two-letter proxy country code. Leave empty and enable Disable Proxy to disable proxy.',
 			},
 			{
 				displayName: 'Session ID',
-				name: 'sessionId',
+				name: 'existingSessionId',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['get', 'stop', 'delete', 'getMessages'],
-					},
-				},
-				description: 'The Browser Use v3 session ID',
-				required: true,
+				description: 'Existing idle session ID to dispatch this task to',
 			},
 			{
-				displayName: 'Wait Timeout',
-				name: 'waitTimeout',
-				type: 'number',
-				default: 900,
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['runAndWait'],
-					},
-				},
-				description: 'Maximum time in seconds to poll for task completion',
-				typeOptions: {
-					minValue: 10,
-					maxValue: 14400,
-				},
-			},
-			{
-				displayName: 'Extract Structured Data',
-				name: 'enableStructuredOutput',
+				displayName: 'Skills',
+				name: 'skills',
 				type: 'boolean',
-				default: false,
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-					},
-				},
-				description: 'Whether to request a final output matching a JSON Schema',
+				default: true,
+				description: 'Whether to enable built-in agent skills',
 			},
 			{
-				displayName: 'Data Template',
-				name: 'schemaTemplate',
+				displayName: 'Workspace ID',
+				name: 'workspaceId',
+				type: 'string',
+				default: '',
+				description: 'Workspace ID to attach for persistent files',
+			},
+		],
+	},
+	{
+		displayName: 'Stop Strategy',
+		name: 'stopStrategy',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['stop'],
+			},
+		},
+		options: [
+			{
+				name: 'Session',
+				value: 'session',
+				description: 'Destroy the sandbox and mark the session stopped',
+			},
+			{
+				name: 'Task',
+				value: 'task',
+				description: 'Stop the running task and keep the session alive',
+			},
+		],
+		default: 'session',
+		description: 'Whether to stop the whole session or only the running task',
+	},
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				resource: ['session', 'browser'],
+				operation: ['getMany'],
+			},
+		},
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['session', 'browser'],
+				operation: ['getMany'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+		},
+		default: 50,
+		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Browser List Options',
+		name: 'browserListOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['browser'],
+				operation: ['getMany'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Status',
+				name: 'filterBy',
 				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-						enableStructuredOutput: [true],
-					},
-				},
 				options: [
 					{
-						name: 'Article/Blog Content',
-						value: 'article',
+						name: 'Active',
+						value: 'active',
 					},
 					{
-						name: 'Company Information',
-						value: 'company',
-					},
-					{
-						name: 'Contact Information',
-						value: 'contact',
-					},
-					{
-						name: 'Custom JSON Schema',
-						value: 'custom',
-					},
-					{
-						name: 'Product Information',
-						value: 'product',
+						name: 'Stopped',
+						value: 'stopped',
 					},
 				],
-				default: 'custom',
-				description: 'Choose a pre-built schema or provide a custom one',
+				default: 'active',
+				description: 'Filter browser sessions by status',
+			},
+		],
+	},
+	{
+		displayName: 'Messages Options',
+		name: 'messagesOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['session'],
+				operation: ['getMessages'],
+			},
+		},
+		options: [
+			{
+				displayName: 'After Cursor',
+				name: 'after',
+				type: 'string',
+				default: '',
+				description: 'Return messages after this cursor',
 			},
 			{
-				displayName: 'Output Schema',
-				name: 'outputSchema',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-						enableStructuredOutput: [true],
-						schemaTemplate: ['custom'],
-					},
-				},
-				default:
-					'{\n  "type": "object",\n  "properties": {\n    "title": {"type": "string"},\n    "description": {"type": "string"},\n    "items": {"type": "array", "items": {"type": "object"}}\n  },\n  "required": ["title"]\n}',
-				description: 'JSON Schema that the final output must conform to',
-			},
-			{
-				displayName: 'Session Options',
-				name: 'sessionOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['create', 'runAndWait'],
-					},
-				},
-				options: [
-					{
-						displayName: 'AgentMail',
-						name: 'agentmail',
-						type: 'boolean',
-						default: true,
-						description: 'Whether to provision a temporary email inbox for the session',
-					},
-					{
-						displayName: 'Cache Script',
-						name: 'cacheScript',
-						type: 'options',
-						options: [
-							{
-								name: 'Auto',
-								value: 'auto',
-							},
-							{
-								name: 'Disabled',
-								value: 'disabled',
-							},
-							{
-								name: 'Enabled',
-								value: 'enabled',
-							},
-						],
-						default: 'auto',
-						description: 'Whether to enable deterministic script caching',
-					},
-					{
-						displayName: 'Disable Proxy',
-						name: 'disableProxy',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to disable the Browser Use proxy for this session',
-					},
-					{
-						displayName: 'Enable Recording',
-						name: 'enableRecording',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to record the browser session',
-					},
-					{
-						displayName: 'Enable Scheduled Tasks',
-						name: 'enableScheduledTasks',
-						type: 'boolean',
-						default: false,
-						description: 'Whether the agent can create scheduled tasks',
-					},
-					{
-						displayName: 'Keep Alive',
-						name: 'keepAlive',
-						type: 'boolean',
-						default: false,
-						description:
-							'Whether to keep the session idle after task completion for follow-up tasks',
-					},
-					{
-						displayName: 'Max Cost USD',
-						name: 'maxCostUsd',
-						type: 'number',
-						default: 0,
-						description: 'Maximum total cost in USD allowed for this session',
-						typeOptions: {
-							minValue: 0,
-						},
-					},
-					{
-						displayName: 'Model',
-						name: 'model',
-						type: 'options',
-						options: [...V3_MODELS],
-						default: 'claude-sonnet-4.6',
-						description: 'The model to use for the task',
-					},
-					{
-						displayName: 'Profile ID',
-						name: 'profileId',
-						type: 'string',
-						default: '',
-						description: 'Browser profile ID to load into the session',
-					},
-					{
-						displayName: 'Proxy Country Code',
-						name: 'proxyCountryCode',
-						type: 'string',
-						default: 'us',
-						description:
-							'Two-letter proxy country code. Leave empty and enable Disable Proxy to disable proxy.',
-					},
-					{
-						displayName: 'Session ID',
-						name: 'existingSessionId',
-						type: 'string',
-						default: '',
-						description: 'Existing idle session ID to dispatch this task to',
-					},
-					{
-						displayName: 'Skills',
-						name: 'skills',
-						type: 'boolean',
-						default: true,
-						description: 'Whether to enable built-in agent skills',
-					},
-					{
-						displayName: 'Workspace ID',
-						name: 'workspaceId',
-						type: 'string',
-						default: '',
-						description: 'Workspace ID to attach for persistent files',
-					},
-				],
-			},
-			{
-				displayName: 'Stop Strategy',
-				name: 'stopStrategy',
-				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['stop'],
-					},
-				},
-				options: [
-					{
-						name: 'Session',
-						value: 'session',
-						description: 'Destroy the sandbox and mark the session stopped',
-					},
-					{
-						name: 'Task',
-						value: 'task',
-						description: 'Stop the running task and keep the session alive',
-					},
-				],
-				default: 'session',
-				description: 'Whether to stop the whole session or only the running task',
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['session', 'browser'],
-						operation: ['getMany'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
+				displayName: 'Before Cursor',
+				name: 'before',
+				type: 'string',
+				default: '',
+				description: 'Return messages before this cursor',
 			},
 			{
 				displayName: 'Limit',
 				name: 'limit',
 				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['session', 'browser'],
-						operation: ['getMany'],
-						returnAll: [false],
-					},
-				},
+				default: 50,
 				typeOptions: {
 					minValue: 1,
 				},
-				default: 50,
 				description: 'Max number of results to return',
 			},
+		],
+	},
+	{
+		displayName: 'Browser Session ID',
+		name: 'browserSessionId',
+		type: 'string',
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['browser'],
+				operation: ['get', 'stop'],
+			},
+		},
+		description: 'The standalone browser session ID',
+		required: true,
+	},
+	{
+		displayName: 'Browser Options',
+		name: 'browserOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['browser'],
+				operation: ['create'],
+			},
+		},
+		options: [
 			{
-				displayName: 'Browser List Options',
-				name: 'browserListOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['browser'],
-						operation: ['getMany'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Status',
-						name: 'filterBy',
-						type: 'options',
-						options: [
-							{
-								name: 'Active',
-								value: 'active',
-							},
-							{
-								name: 'Stopped',
-								value: 'stopped',
-							},
-						],
-						default: 'active',
-						description: 'Filter browser sessions by status',
-					},
-				],
+				displayName: 'Allow Resizing',
+				name: 'allowResizing',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to allow browser resizing during the session',
 			},
 			{
-				displayName: 'Messages Options',
-				name: 'messagesOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['session'],
-						operation: ['getMessages'],
-					},
+				displayName: 'Browser Screen Height',
+				name: 'browserScreenHeight',
+				type: 'number',
+				default: 1080,
+				typeOptions: {
+					minValue: 320,
+					maxValue: 3456,
 				},
-				options: [
-					{
-						displayName: 'After Cursor',
-						name: 'after',
-						type: 'string',
-						default: '',
-						description: 'Return messages after this cursor',
-					},
-					{
-						displayName: 'Before Cursor',
-						name: 'before',
-						type: 'string',
-						default: '',
-						description: 'Return messages before this cursor',
-					},
-					{
-						displayName: 'Limit',
-						name: 'limit',
-						type: 'number',
-						default: 50,
-						typeOptions: {
-							minValue: 1,
-						},
-						description: 'Max number of results to return',
-					},
-				],
+				description: 'Custom browser screen height in pixels',
 			},
 			{
-				displayName: 'Browser Session ID',
-				name: 'browserSessionId',
+				displayName: 'Browser Screen Width',
+				name: 'browserScreenWidth',
+				type: 'number',
+				default: 1920,
+				typeOptions: {
+					minValue: 320,
+					maxValue: 6144,
+				},
+				description: 'Custom browser screen width in pixels',
+			},
+			{
+				displayName: 'Custom Proxy',
+				name: 'customProxy',
+				type: 'json',
+				default:
+					'{\n  "host": "proxy.example.com",\n  "port": 8080,\n  "username": "",\n  "password": ""\n}',
+				description: 'Custom proxy object to use for this browser session',
+			},
+			{
+				displayName: 'Disable Proxy',
+				name: 'disableProxy',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to disable the Browser Use proxy for this browser session',
+			},
+			{
+				displayName: 'Enable Recording',
+				name: 'enableRecording',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to record this browser session',
+			},
+			{
+				displayName: 'Profile ID',
+				name: 'profileId',
 				type: 'string',
 				default: '',
-				displayOptions: {
-					show: {
-						resource: ['browser'],
-						operation: ['get', 'stop'],
-					},
-				},
-				description: 'The standalone browser session ID',
-				required: true,
+				description: 'Browser profile ID to load into the browser session',
 			},
 			{
-				displayName: 'Browser Options',
-				name: 'browserOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['browser'],
-						operation: ['create'],
-					},
+				displayName: 'Proxy Country Code',
+				name: 'proxyCountryCode',
+				type: 'string',
+				default: 'us',
+				description: 'Two-letter proxy country code',
+			},
+			{
+				displayName: 'Timeout',
+				name: 'timeout',
+				type: 'number',
+				default: 60,
+				typeOptions: {
+					minValue: 1,
+					maxValue: 240,
 				},
-				options: [
-					{
-						displayName: 'Allow Resizing',
-						name: 'allowResizing',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to allow browser resizing during the session',
-					},
-					{
-						displayName: 'Browser Screen Height',
-						name: 'browserScreenHeight',
-						type: 'number',
-						default: 1080,
-						typeOptions: {
-							minValue: 320,
-							maxValue: 3456,
-						},
-						description: 'Custom browser screen height in pixels',
-					},
-					{
-						displayName: 'Browser Screen Width',
-						name: 'browserScreenWidth',
-						type: 'number',
-						default: 1920,
-						typeOptions: {
-							minValue: 320,
-							maxValue: 6144,
-						},
-						description: 'Custom browser screen width in pixels',
-					},
-					{
-						displayName: 'Custom Proxy',
-						name: 'customProxy',
-						type: 'json',
-						default:
-							'{\n  "host": "proxy.example.com",\n  "port": 8080,\n  "username": "",\n  "password": ""\n}',
-						description: 'Custom proxy object to use for this browser session',
-					},
-					{
-						displayName: 'Disable Proxy',
-						name: 'disableProxy',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to disable the Browser Use proxy for this browser session',
-					},
-					{
-						displayName: 'Enable Recording',
-						name: 'enableRecording',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to record this browser session',
-					},
-					{
-						displayName: 'Profile ID',
-						name: 'profileId',
-						type: 'string',
-						default: '',
-						description: 'Browser profile ID to load into the browser session',
-					},
-					{
-						displayName: 'Proxy Country Code',
-						name: 'proxyCountryCode',
-						type: 'string',
-						default: 'us',
-						description: 'Two-letter proxy country code',
-					},
-					{
-						displayName: 'Timeout',
-						name: 'timeout',
-						type: 'number',
-						default: 60,
-						typeOptions: {
-							minValue: 1,
-							maxValue: 240,
-						},
-						description: 'Browser session timeout in minutes',
-					},
-				],
+				description: 'Browser session timeout in minutes',
 			},
 		],
-	};
+	},
+];
 
-	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		const items = this.getInputData();
-		const returnData: INodeExecutionData[] = [];
-		const resource = this.getNodeParameter('resource', 0) as string;
-		const operation = this.getNodeParameter('operation', 0) as string;
+export async function executeBrowserUseV3(
+	this: IExecuteFunctions,
+): Promise<INodeExecutionData[][]> {
+	const items = this.getInputData();
+	const returnData: INodeExecutionData[] = [];
+	const resource = this.getNodeParameter('resource', 0) as string;
+	const operation = this.getNodeParameter('operation', 0) as string;
 
-		for (let i = 0; i < items.length; i++) {
-			try {
-				let responseData: any;
+	for (let i = 0; i < items.length; i++) {
+		try {
+			let responseData: any;
 
-				if (resource === 'session') {
-					responseData = await executeSessionOperation.call(this, operation, i);
-				} else if (resource === 'browser') {
-					responseData = await executeBrowserOperation.call(this, operation, i);
-				}
-
-				if (Array.isArray(responseData)) {
-					returnData.push(
-						...responseData.map((entry) => ({
-							json: entry,
-							pairedItem: {
-								item: i,
-							},
-						})),
-					);
-				} else {
-					returnData.push({
-						json: responseData,
-						pairedItem: {
-							item: i,
-						},
-					});
-				}
-			} catch (error) {
-				if (this.continueOnFail()) {
-					returnData.push({
-						json: {
-							error: (error as Error).message,
-						},
-						pairedItem: {
-							item: i,
-						},
-					});
-					continue;
-				}
-				throw error;
+			if (resource === 'session') {
+				responseData = await executeSessionOperation.call(this, operation, i);
+			} else if (resource === 'browser') {
+				responseData = await executeBrowserOperation.call(this, operation, i);
 			}
-		}
 
-		return [returnData];
+			if (Array.isArray(responseData)) {
+				returnData.push(
+					...responseData.map((entry) => ({
+						json: entry,
+						pairedItem: {
+							item: i,
+						},
+					})),
+				);
+			} else {
+				returnData.push({
+					json: responseData,
+					pairedItem: {
+						item: i,
+					},
+				});
+			}
+		} catch (error) {
+			if (this.continueOnFail()) {
+				returnData.push({
+					json: {
+						error: (error as Error).message,
+					},
+					pairedItem: {
+						item: i,
+					},
+				});
+				continue;
+			}
+			throw toNodeError(this.getNode(), error);
+		}
 	}
+
+	return [returnData];
 }
 
 async function executeSessionOperation(
@@ -1118,20 +1103,16 @@ function normalizeRequiredId(this: IExecuteFunctions, value: unknown, displayNam
 }
 
 function validateUrl(this: IExecuteFunctions, value: string, displayName: string) {
+	// `new URL` throws on a malformed URL and succeeds on any other scheme, so both the throw
+	// and the protocol check feed the same single failure branch.
+	let url: URL | undefined;
 	try {
-		const url = new URL(value);
-		if (!['http:', 'https:'].includes(url.protocol)) {
-			throw new NodeOperationError(
-				this.getNode(),
-				`The "${displayName}" parameter must be a valid http:// or https:// URL.`,
-				{ level: 'warning' },
-			);
-		}
-	} catch (error) {
-		if (error instanceof NodeOperationError) {
-			throw error;
-		}
+		url = new URL(value);
+	} catch {
+		url = undefined;
+	}
 
+	if (!url || !['http:', 'https:'].includes(url.protocol)) {
 		throw new NodeOperationError(
 			this.getNode(),
 			`The "${displayName}" parameter must be a valid http:// or https:// URL.`,

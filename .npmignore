@@ -6,7 +6,7 @@ tsconfig.json
 gulpfile.js
 
 # Development files
-.eslintrc.js
+eslint.config.mjs
 .prettierrc.js
 .vscode/
 .idea/

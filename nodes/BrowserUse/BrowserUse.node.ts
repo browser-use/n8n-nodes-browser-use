@@ -6,12 +6,14 @@ import {
 	INodeTypeDescription,
 	JsonObject,
 	NodeApiError,
+	NodeConnectionTypes,
 	NodeOperationError,
 } from 'n8n-workflow';
 
 import { BrowserUseApiVersion, getVersionedBaseUrl } from './ApiVersion';
-import { BrowserUseV3 } from './BrowserUseV3';
-import { BrowserUseV4 } from './BrowserUseV4';
+import { browserUseV3Properties, executeBrowserUseV3 } from './BrowserUseV3';
+import { browserUseV4Properties, executeBrowserUseV4 } from './BrowserUseV4';
+import { toNodeError } from './NodeErrors';
 import { getSchemaTemplate } from './SchemaTemplates';
 
 const SUPPORTED_MODELS = [
@@ -69,7 +71,11 @@ export class BrowserUse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Browser Use',
 		name: 'browserUse',
-		icon: 'file:browseruse.svg',
+		// The logo is a solid monochrome glyph, so each theme needs the contrasting variant.
+		icon: {
+			light: 'file:browseruse.svg',
+			dark: 'file:browseruse-dark.svg',
+		},
 		group: ['transform'],
 		// Node version 1 defaults to API v2, version 2 defaults to API v4. n8n fills a missing
 		// parameter with its property default, so bumping the default in place would silently
@@ -77,12 +83,14 @@ export class BrowserUse implements INodeType {
 		// change a default. Existing nodes stay on typeVersion 1 forever.
 		version: [1, 2],
 		defaultVersion: 2,
+		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Automate any web task with natural language using AI agents',
 		defaults: {
 			name: 'Browser Use',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		usableAsTool: true,
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'browserUseApi',
@@ -314,7 +322,7 @@ export class BrowserUse implements INodeType {
 					},
 					{
 						displayName:
-							'💡 Using a pre-built template will automatically extract the fields shown above. To see the full JSON schema or create your own structure, select "Custom Format".',
+							'Using a pre-built template will automatically extract the fields shown above. To see the full JSON schema or create your own structure, select "Custom Format".',
 						name: 'templateSchemaPreview',
 						type: 'notice',
 						displayOptions: {
@@ -604,8 +612,8 @@ export class BrowserUse implements INodeType {
 				],
 				'v2',
 			),
-			...addApiVersionDisplayOptions(new BrowserUseV3().description.properties, 'v3'),
-			...addApiVersionDisplayOptions(new BrowserUseV4().description.properties, 'v4'),
+			...addApiVersionDisplayOptions(browserUseV3Properties, 'v3'),
+			...addApiVersionDisplayOptions(browserUseV4Properties, 'v4'),
 		],
 	};
 
@@ -615,11 +623,11 @@ export class BrowserUse implements INodeType {
 		const apiVersion = this.getNodeParameter('apiVersion', 0, 'v2') as string;
 
 		if (apiVersion === 'v4') {
-			return new BrowserUseV4().execute.call(this);
+			return executeBrowserUseV4.call(this);
 		}
 
 		if (apiVersion === 'v3') {
-			return new BrowserUseV3().execute.call(this);
+			return executeBrowserUseV3.call(this);
 		}
 
 		const items = this.getInputData();
@@ -667,7 +675,7 @@ export class BrowserUse implements INodeType {
 					});
 					continue;
 				}
-				throw error;
+				throw toNodeError(this.getNode(), error);
 			}
 		}
 
@@ -797,68 +805,71 @@ async function executeTask(this: IExecuteFunctions, itemIndex: number): Promise<
 		if (schemaTemplate && schemaTemplate !== 'custom') {
 			schema = getSchemaTemplate(schemaTemplate);
 		} else if (outputSchema) {
-			try {
-				schema = typeof outputSchema === 'string' ? JSON.parse(outputSchema) : outputSchema;
-
-				// Validate the parsed schema
-				if (!schema || typeof schema !== 'object') {
+			// Only the parse belongs in the try. The validation below throws NodeOperationErrors
+			// that must reach the user unchanged, and a catch around them could only re-wrap them.
+			if (typeof outputSchema === 'string') {
+				try {
+					schema = JSON.parse(outputSchema);
+				} catch (error) {
 					throw new NodeOperationError(
 						this.getNode(),
-						'The "Custom Data Format" must be a valid JSON object or array. Please check your JSON syntax.',
+						`The "Custom Data Format" has invalid JSON syntax: ${(error as any).message}. Please check your JSON format.`,
 						{ level: 'warning' },
 					);
 				}
+			} else {
+				schema = outputSchema;
+			}
 
-				// Check for common schema mistakes
-				if (Array.isArray(schema)) {
-					if (schema.length === 0) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'The "Custom Data Format" array cannot be empty. Please provide at least one example object to define the structure.',
-							{ level: 'warning' },
-						);
-					}
-					if (typeof schema[0] !== 'object' || schema[0] === null) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'The "Custom Data Format" array items must be objects. Example: [{"name": "string", "age": "number"}]',
-							{ level: 'warning' },
-						);
-					}
-				} else if (schema.type) {
-					// If it claims to be a JSON Schema, validate basic structure
-					const validTypes = ['object', 'array', 'string', 'number', 'boolean', 'null'];
-					if (!validTypes.includes(schema.type)) {
-						throw new NodeOperationError(
-							this.getNode(),
-							`The "Custom Data Format" has an unknown type "${schema.type}". Valid types are: ${validTypes.join(', ')}`,
-							{ level: 'warning' },
-						);
-					}
-					if (schema.type === 'object' && !schema.properties) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'The "Custom Data Format" object type must have a "properties" field. Please define the object structure.',
-							{ level: 'warning' },
-						);
-					}
-					if (schema.type === 'array' && !schema.items) {
-						throw new NodeOperationError(
-							this.getNode(),
-							'The "Custom Data Format" array type must have an "items" field. Please define the array item structure.',
-							{ level: 'warning' },
-						);
-					}
-				}
-			} catch (error) {
-				if (error instanceof NodeOperationError) {
-					throw error; // Re-throw our custom errors
-				}
+			// Validate the parsed schema
+			if (!schema || typeof schema !== 'object') {
 				throw new NodeOperationError(
 					this.getNode(),
-					`The "Custom Data Format" has invalid JSON syntax: ${(error as any).message}. Please check your JSON format.`,
+					'The "Custom Data Format" must be a valid JSON object or array. Please check your JSON syntax.',
 					{ level: 'warning' },
 				);
+			}
+
+			// Check for common schema mistakes
+			if (Array.isArray(schema)) {
+				if (schema.length === 0) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'The "Custom Data Format" array cannot be empty. Please provide at least one example object to define the structure.',
+						{ level: 'warning' },
+					);
+				}
+				if (typeof schema[0] !== 'object' || schema[0] === null) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'The "Custom Data Format" array items must be objects. Example: [{"name": "string", "age": "number"}]',
+						{ level: 'warning' },
+					);
+				}
+			} else if (schema.type) {
+				// If it claims to be a JSON Schema, validate basic structure
+				const validTypes = ['object', 'array', 'string', 'number', 'boolean', 'null'];
+				if (!validTypes.includes(schema.type)) {
+					throw new NodeOperationError(
+						this.getNode(),
+						`The "Custom Data Format" has an unknown type "${schema.type}". Valid types are: ${validTypes.join(', ')}`,
+						{ level: 'warning' },
+					);
+				}
+				if (schema.type === 'object' && !schema.properties) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'The "Custom Data Format" object type must have a "properties" field. Please define the object structure.',
+						{ level: 'warning' },
+					);
+				}
+				if (schema.type === 'array' && !schema.items) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'The "Custom Data Format" array type must have an "items" field. Please define the array item structure.',
+						{ level: 'warning' },
+					);
+				}
 			}
 		} else {
 			throw new NodeOperationError(

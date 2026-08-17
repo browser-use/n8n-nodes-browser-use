@@ -3,9 +3,9 @@ const { describe, it } = require('node:test');
 
 const { loadNode, makeCtx, httpError, withVirtualClock } = require('./helpers');
 
-const { BrowserUseV4 } = loadNode('BrowserUseV4.js');
+const { executeBrowserUseV4 } = loadNode('BrowserUseV4.js');
 
-const run = (ctx) => new BrowserUseV4().execute.call(ctx);
+const run = (ctx) => executeBrowserUseV4.call(ctx);
 
 const CUSTOM_SCHEMA =
 	'{"type":"object","properties":{"title":{"type":"string"}},"required":["title","price"]}';

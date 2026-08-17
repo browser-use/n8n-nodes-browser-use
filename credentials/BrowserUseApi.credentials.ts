@@ -2,6 +2,7 @@ import {
 	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
+	Icon,
 	INodeProperties,
 } from 'n8n-workflow';
 
@@ -9,6 +10,11 @@ export class BrowserUseApi implements ICredentialType {
 	name = 'browserUseApi';
 	displayName = 'Browser Use API';
 	documentationUrl = 'https://docs.browser-use.com/cloud';
+	// The logo is a solid monochrome glyph, so each theme needs the contrasting variant.
+	icon: Icon = {
+		light: 'file:../nodes/BrowserUse/browseruse.svg',
+		dark: 'file:../nodes/BrowserUse/browseruse-dark.svg',
+	};
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',
