@@ -57,6 +57,8 @@ Leave the credential Base URL at the default. In the **Browser Use** node, use t
 
 ## Nodes
 
+The package installs a single **Browser Use** node. It can also be attached to an **AI Agent** as a tool, so an agent can hand it a task in natural language.
+
 ### API Version: v4 Runs, Sessions, and Browsers
 
 In v4 the unit of work is a **run**. Every run belongs to a **session**, and a session is a conversation: follow-up messages queued onto a session reuse its context and browser state.

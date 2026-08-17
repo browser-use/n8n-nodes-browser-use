@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-browser-use-cloud",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"description": "n8n node for Browser Use Cloud API v4, v3, and v2 - agent runs, sessions, and cloud browsers",
 	"keywords": [
 		"n8n-community-node-package",
@@ -50,11 +50,8 @@
 		]
 	},
 	"devDependencies": {
-		"@n8n/node-cli": "0.29.0",
-		"@typescript-eslint/eslint-plugin": "^8.59.2",
-		"@typescript-eslint/parser": "^8.59.2",
-		"eslint": "^8.57.1",
-		"eslint-plugin-n8n-nodes-base": "^1.16.6",
+		"@n8n/node-cli": "0.43.4",
+		"eslint": "9.29.0",
 		"gulp": "^5.0.1",
 		"n8n-workflow": "^2.16.0",
 		"prettier": "^3.8.3",

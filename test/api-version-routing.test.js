@@ -6,8 +6,8 @@ const { NodeHelpers } = require('n8n-workflow');
 const { loadNode, makeCtx } = require('./helpers');
 
 const { BrowserUse } = loadNode('BrowserUse.node.js');
-const { BrowserUseV3 } = loadNode('BrowserUseV3.js');
-const { BrowserUseV4 } = loadNode('BrowserUseV4.js');
+const { browserUseV3Properties } = loadNode('BrowserUseV3.js');
+const { browserUseV4Properties } = loadNode('BrowserUseV4.js');
 
 const run = (ctx) => new BrowserUse().execute.call(ctx);
 
@@ -107,8 +107,8 @@ describe('API version selection', () => {
 		const forVersion = (version) =>
 			properties.filter((property) => property.displayOptions?.show?.apiVersion?.[0] === version);
 
-		assert.equal(forVersion('v3').length, new BrowserUseV3().description.properties.length);
-		assert.equal(forVersion('v4').length, new BrowserUseV4().description.properties.length);
+		assert.equal(forVersion('v3').length, browserUseV3Properties.length);
+		assert.equal(forVersion('v4').length, browserUseV4Properties.length);
 	});
 
 	it('treats an unresolvable apiVersion as v2 at execution time', async () => {

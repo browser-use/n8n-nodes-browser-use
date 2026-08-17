@@ -1,5 +1,3 @@
-/* eslint-disable n8n-nodes-base/node-filename-against-convention -- Shared helper module, not an n8n node file. */
-
 /**
  * Pre-built structured-output schemas offered by every API version of the node.
  */
