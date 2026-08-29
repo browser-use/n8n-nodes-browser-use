@@ -137,7 +137,75 @@ describe('API version selection', () => {
 	});
 });
 
-describe('v2 behaviour is unchanged by the shared-helper refactor', () => {
+describe('v2 model compatibility and behaviour', () => {
+	it('offers Browser Use 2.0 Mini (Preview) only on the compatible v2 selectors', () => {
+		const properties = new BrowserUse().description.properties;
+		const collectionFor = (version, name) =>
+			properties.find(
+				(property) =>
+					property.name === name && property.displayOptions?.show?.apiVersion?.includes(version),
+			);
+		const modelOptions = (collection, name) =>
+			collection.options.find((option) => option.name === name).options;
+
+		const v2AdvancedOptions = collectionFor('v2', 'advancedOptions');
+		const v3SessionOptions = collectionFor('v3', 'sessionOptions');
+		const v4RunOptions = collectionFor('v4', 'runOptions');
+
+		assert.ok(v2AdvancedOptions);
+		assert.ok(v3SessionOptions);
+		assert.ok(v4RunOptions);
+
+		const previewModel = modelOptions(v2AdvancedOptions, 'llm').find(
+			(option) => option.value === 'bu-2-0-mini-preview',
+		);
+
+		assert.deepEqual(previewModel, {
+			name: 'Browser Use 2.0 Mini (Preview)',
+			value: 'bu-2-0-mini-preview',
+			description: 'Cheaper and faster per token; opt in while the model is in preview',
+		});
+		assert.ok(
+			modelOptions(v2AdvancedOptions, 'judgeLlm').some(
+				(option) => option.value === 'bu-2-0-mini-preview',
+			),
+		);
+		assert.ok(
+			!modelOptions(v3SessionOptions, 'model').some(
+				(option) => option.value === 'bu-2-0-mini-preview',
+			),
+		);
+		assert.ok(
+			!modelOptions(v4RunOptions, 'model').some((option) => option.value === 'bu-2-0-mini-preview'),
+		);
+	});
+
+	it('serializes the exact Browser Use 2.0 Mini preview model identifier', async () => {
+		const { ctx, calls } = makeCtx({
+			params: {
+				apiVersion: 'v2',
+				resource: 'task',
+				operation: 'execute',
+				task: 'do it',
+				startUrl: '',
+				timeout: 10,
+				enableStructuredOutput: false,
+				schemaTemplate: 'custom',
+				outputSchema: '',
+				advancedOptions: { llm: 'bu-2-0-mini-preview' },
+			},
+			routes: {
+				'POST /tasks': { id: 't1' },
+				'GET /tasks/t1': { id: 't1', status: 'finished', isSuccess: true },
+			},
+		});
+
+		await run(ctx);
+
+		assert.equal(calls[0].baseURL, 'https://api.browser-use.com/api/v2');
+		assert.equal(calls[0].body.llm, 'bu-2-0-mini-preview');
+	});
+
 	it('still calls the legacy /tasks endpoint on /api/v2', async () => {
 		const { ctx, calls } = makeCtx({
 			params: {

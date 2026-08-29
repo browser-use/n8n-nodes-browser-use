@@ -18,6 +18,11 @@ import { getSchemaTemplate } from './SchemaTemplates';
 
 const SUPPORTED_MODELS = [
 	{ name: 'Browser Use 2.0 (Default)', value: 'browser-use-2.0' },
+	{
+		name: 'Browser Use 2.0 Mini (Preview)',
+		value: 'bu-2-0-mini-preview',
+		description: 'Cheaper and faster per token; opt in while the model is in preview',
+	},
 	{ name: 'Browser Use LLM', value: 'browser-use-llm' },
 	{ name: 'Claude Opus 4.5', value: 'claude-opus-4-5-20251101' },
 	{ name: 'Claude Sonnet 4.5', value: 'claude-sonnet-4-5-20250929' },
