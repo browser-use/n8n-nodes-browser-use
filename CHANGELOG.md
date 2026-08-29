@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2
+
+### Added
+
+- Added **Browser Use 2.0 Mini (Preview)** (`bu-2-0-mini-preview`) to the API v2 task and judge model selectors, with exact request serialization and API-version visibility coverage.
+
 ## 1.2.1
 
 Resolves every issue raised in the n8n community node review of 1.2.0. No node behaviour, request body, or endpoint changes.

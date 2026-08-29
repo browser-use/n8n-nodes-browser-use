@@ -123,6 +123,8 @@ The v2 mode remains available for backward compatibility. It uses the v2 `/tasks
 
 Use v2 mode for existing workflows that already depend on API v2 task behavior or v2-specific options such as allowed domains, secrets, max steps, judge settings, and v2 model names.
 
+The v2 model selector includes **Browser Use 2.0 Mini (Preview)** (`bu-2-0-mini-preview`), a cheaper and faster opt-in model while it remains in preview. This model is available only with API v2.
+
 ### API Version: v3 Sessions and Browsers
 
 Use v3 mode for the new API v3 session and browser workflows.
